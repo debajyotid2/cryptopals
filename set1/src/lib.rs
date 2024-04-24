@@ -102,11 +102,17 @@ fn bintohex(num_str: &String) -> String {
 }
 
 pub fn hex2base64(hex: &String) -> String {
-    bintobase64(&hextobin(hex))
+    let binding = hextobin(hex);
+    let (_, hex_bin) = binding.split_once('1').unwrap();
+    println!("{}", hex_bin);
+    bintobase64(&format!("1{}", hex_bin))
 }
 
 pub fn base64tohex(base64: &String) -> String {
-    bintohex(&base64tobin(base64))
+    let binding = base64tobin(base64);
+    let (_, base64_bin) = binding.split_once('1').unwrap();
+    println!("{}", base64_bin);
+    bintohex(&format!("1{}", base64_bin))
 }
 
 #[cfg(test)]
