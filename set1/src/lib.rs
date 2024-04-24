@@ -81,18 +81,12 @@ fn bintohex(num_str: &String) -> String {
         .join("")
 }
 
-pub fn hex2base64(hex: &String) -> String {
-    let binding = hextobin(hex);
-    let (_, hex_bin) = binding.split_once('1').unwrap();
-    println!("{}", hex_bin);
-    bintobase64(&format!("1{}", hex_bin))
+pub fn hextobase64(hex: &String) -> String {
+    bintobase64(&hextobin(hex))
 }
 
 pub fn base64tohex(base64: &String) -> String {
-    let binding = base64tobin(base64);
-    let (_, base64_bin) = binding.split_once('1').unwrap();
-    println!("{}", base64_bin);
-    bintohex(&format!("1{}", base64_bin))
+    bintohex(&base64tobin(base64))
 }
 
 #[cfg(test)]
@@ -124,10 +118,10 @@ mod tests {
     }
 
     #[test]
-    fn test_hex2base64() {
+    fn test_hextobase64() {
         let hex = String::from("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d");
         let base64 = String::from("SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
-        assert_eq!(hex2base64(&hex), base64);
+        assert_eq!(hextobase64(&hex), base64);
     }
 
     #[test]
