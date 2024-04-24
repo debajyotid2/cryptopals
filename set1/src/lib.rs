@@ -35,7 +35,7 @@ fn digit2hexsym(digit: &i32) -> String {
                             .unwrap());
 }
 
-fn hextobin(num_str: &String) -> String {
+pub fn hextobin(num_str: &String) -> String {
     num_str
         .chars()
         .map(|el| format!("{:04b}", hexsym2digit(&el)))
@@ -43,7 +43,7 @@ fn hextobin(num_str: &String) -> String {
         .join("")
 }
 
-fn base64tobin(num_str: &String) -> String {
+pub fn base64tobin(num_str: &String) -> String {
      let bin_uncut = num_str
                         .chars()
                         .map(|el| format!("{:06b}", base64sym2digit(&el)))
@@ -55,7 +55,7 @@ fn base64tobin(num_str: &String) -> String {
         .to_string()
 }
 
-fn bintobase64(num_str: &String) -> String {
+pub fn bintobase64(num_str: &String) -> String {
     num_str
         .as_bytes()
         .chunks(6)
@@ -68,7 +68,7 @@ fn bintobase64(num_str: &String) -> String {
         .join("")
 }
 
-fn bintohex(num_str: &String) -> String {
+pub fn bintohex(num_str: &String) -> String {
     num_str
         .as_bytes()
         .chunks(4)
