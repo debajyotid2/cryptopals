@@ -1,61 +1,37 @@
-const HEXDIGITS: &str = "0123456789";
-const HEXCHARS: &str = "abcdef";
+const HEXTABLE: &str = "0123456789abcdef";
+const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn hexsym2digit(letter: &char) -> i32 {
-    if let Some(index) = HEXDIGITS.find(*letter) {
+    if let Some(index) = HEXTABLE.find(*letter) {
         return index.try_into().unwrap();
-    } else if let Some(index) = HEXCHARS.find(*letter) {
-        return (10 + index).try_into().unwrap();
-    } else {
-        panic!("Invalid hex symbol.")
     }
+    panic!("Invalid hex symbol.");
 }
 
 fn base64sym2digit(letter: &char) -> i32 {
-    if letter.is_alphabetic() {
-        if letter.is_lowercase() {
-            return 26 + *letter as i32 - 'a' as i32;
-        }
-        return *letter as i32 - 'A' as i32;
-    } else if letter.is_numeric() {
-        return 52 + *letter as i32;
-    } else if *letter == '+' {
-        return 62;
-    } else if *letter == '/' {
-        return 63;
-    } else {
-        panic!("Invalid base64 character.");
+    if let Some(index) = BASE64TABLE.find(*letter) {
+        return index.try_into().unwrap();
     }
+    panic!("Invalid base64 character.");
 }
 
 fn digit2base64sym(digit: &i32) -> String {
     if *digit < 0 || *digit > 63 {
         panic!("Invalid base64 character.");
     }
-    if *digit >= 0 && *digit < 26 {
-        return ((65 + digit) as u8 as char)
-            .to_string();
-    } else if *digit < 52 {
-        return ((97 + digit - 26) as u8 as char)
-            .to_string();
-    } else if *digit < 62 {
-        return (digit - 52).to_string();
-    } else if *digit == 62 {
-        return String::from('+');
-    }
-    return String::from('/');
+    return String::from(BASE64TABLE
+                            .chars()
+                            .nth(*digit as usize)
+                            .unwrap());
 }
 
 fn digit2hexsym(digit: &i32) -> String {
     if *digit < 0 || *digit > 15 {
         panic!("Invalid hex character.");
     }
-    if *digit < 10 {
-        return format!("{}", *digit);
-    }
-    return String::from(HEXCHARS
+    return String::from(HEXTABLE
                             .chars()
-                            .nth((*digit - 10) as usize)
+                            .nth(*digit as usize)
                             .unwrap());
 }
 
@@ -68,11 +44,15 @@ fn hextobin(num_str: &String) -> String {
 }
 
 fn base64tobin(num_str: &String) -> String {
-    num_str
-        .chars()
-        .map(|el| format!("{:06b}", base64sym2digit(&el)))
-        .collect::<Vec<String>>()
-        .join("")
+     let bin_uncut = num_str
+                        .chars()
+                        .map(|el| format!("{:06b}", base64sym2digit(&el)))
+                        .collect::<Vec<String>>()
+                        .join("");
+    bin_uncut
+        .split_at(bin_uncut.len() - bin_uncut.len() % 8)
+        .0
+        .to_string()
 }
 
 fn bintobase64(num_str: &String) -> String {
