@@ -1,5 +1,6 @@
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const ALPHABET_RANKS: &str = "ETAONRISHDLFCMUGYPWBVKJXZQ";
 
 fn hexsym2digit(letter: &char) -> i32 {
     if let Some(index) = HEXTABLE.find(*letter) {
@@ -81,6 +82,16 @@ pub fn bintohex(num_str: &String) -> String {
         .join("")
 }
 
+pub fn bintoascii(bin_str: &String) -> String {
+    bin_str
+        .as_bytes()
+        .chunks(8)
+        .map(|el| std::str::from_utf8(el).unwrap())
+        .map(|el| u8::from_str_radix(el, 2).unwrap())
+        .map(|el| el as char)
+        .collect::<String>()
+}
+
 pub fn hextobase64(hex: &String) -> String {
     bintobase64(&hextobin(hex))
 }
@@ -97,6 +108,15 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
                             .map(|(a, b)| (a as u8 - 48) ^ (b as u8 - 48) + 48)
                             .collect();
     bintohex(&String::from_utf8(res).unwrap())
+}
+
+pub fn decrypt_singlebyteXOR(ciphertext: &String) -> String {
+    let bin_ciphertext = hextobin(&ciphertext);
+    for elem in 0..=255u8 {
+        let res = hex_xor(&bintohex(&format!("{:08b}", elem)
+                    .repeat(ciphertext.len())), ciphertext);
+    }
+    String::from("")
 }
 
 #[cfg(test)]
@@ -147,5 +167,11 @@ mod tests {
         let hex2 = String::from("686974207468652062756c6c277320657965");
         assert_eq!(hex_xor(&hex1, &hex2), 
             String::from("746865206b696420646f6e277420706c6179"));
+    }
+
+    #[test]
+    fn test_bintoascii() {
+        let bin_str = String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101");
+        assert_eq!(bintoascii(&bin_str), String::from("I eat mouse"));
     }
 }
