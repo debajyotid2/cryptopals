@@ -1,9 +1,35 @@
 use std::collections::HashMap;
-use itertools::{Itertools, EitherOrBoth::*};
 
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const ALPHABET_RANKS: &str = "etaonrishdlfcmugypwbvkjxzq";
+const ALPHABET_RANKS: [(char, f32); 26] = [
+    ('Z', 0.074),
+    ('Q', 0.095),
+    ('X', 0.15),
+    ('J', 0.15),
+    ('K', 0.77),
+    ('V', 0.98),
+    ('B', 1.5),
+    ('P', 1.9),
+    ('Y', 2.0),
+    ('G', 2.0),
+    ('F', 2.2),
+    ('W', 2.4),
+    ('M', 2.4),
+    ('U', 2.8),
+    ('C', 2.8),
+    ('L', 4.0),
+    ('D', 4.3),
+    ('R', 6.0),
+    ('H', 6.1),
+    ('S', 6.3),
+    ('N', 6.7),
+    ('I', 7.0),
+    ('O', 7.5),
+    ('A', 8.2),
+    ('T', 9.1),
+    ('E', 12.7)
+];
 
 fn hexsym2digit(letter: &char) -> i32 {
     if let Some(index) = HEXTABLE.find(*letter) {
@@ -39,28 +65,28 @@ fn digit2hexsym(digit: &i32) -> String {
                             .unwrap());
 }
 
-fn score_frequencies(ascii_str: &String) -> i32 {
-    let mut freqs = HashMap::<char, u32>::new();
+fn score_frequencies(ascii_str: &String) -> f32 {
+    let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
+    let mut score: f32 = 0.0;
+    let mut total_letters: i32 = 0;
+    let mut freqs = HashMap::<char, i32>::new();
     for letter in ascii_str.to_lowercase().chars() {
-        if !(letter.is_alphabetic()) { continue; }
-        let count = freqs.entry(letter).or_insert(0u32);
+        if !(letter.is_ascii_alphabetic()) { continue; }
+        let count = freqs.entry(letter).or_insert(0i32);
         *count += 1;
+        total_letters += 1;
     }
-    let mut sorted_freqs: Vec<(&char, &u32)> = freqs
+    if freqs.is_empty() { return std::f32::INFINITY; }
+    let mut sorted_freqs: Vec<(&char, &i32)> = freqs
                                         .iter()
                                         .collect();
-    sorted_freqs.sort_by(|a, b| b.1.cmp(a.1));
-    let letters: String = sorted_freqs
-                            .iter()
-                            .map(|(a, _)| *a)
-                            .collect();
-    let mut score: i32 = if sorted_freqs.is_empty() { i32::MAX } else { 0 };
-    for pair in letters.chars().zip_longest(ALPHABET_RANKS.chars()) {
-        if let Both(l, r) = pair {
-            score +=  l as i32 - r as i32;
-        }
+    sorted_freqs.sort_by(|a, b| b.1.cmp(&a.1));
+    for (letter, count) in sorted_freqs.iter() {
+        let freq = **count as f32 / total_letters as f32 * 100.0;
+        score += (alphabet_ranks[&letter.to_ascii_uppercase()] - freq) *
+                 (alphabet_ranks[&letter.to_ascii_uppercase()] - freq);
     }
-    score.abs()
+    score
 }
 
 pub fn hextobin(num_str: &String) -> String {
@@ -138,7 +164,7 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
 }
 
 pub fn decrypt_singlebyte_xor(ciphertext: &String) -> String {
-    let mut scores = Vec::<(String, i32)>::new();
+    let mut scores = Vec::<(String, f32)>::new();
     let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
     for elem in 0..=255u8 {
         let key = bintohex(&format!("{:08b}", elem)
@@ -148,8 +174,12 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> String {
         dbg!("{}: {}", &decrypted, &score);
         scores.push((decrypted, score));
     }
-    scores.sort_by(|a, b| b.1.cmp(&a.1));
+    scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     scores.reverse();
+
+    for count in 0..10 {
+        dbg!("{}", &scores[count]);
+    }
     scores[0].0.clone()
 }
 
