@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+use itertools::{Itertools, EitherOrBoth::*};
+
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const ALPHABET_RANKS: &str = "ETAONRISHDLFCMUGYPWBVKJXZQ";
+const ALPHABET_RANKS: &str = "etaonrishdlfcmugypwbvkjxzq";
 
 fn hexsym2digit(letter: &char) -> i32 {
     if let Some(index) = HEXTABLE.find(*letter) {
@@ -34,6 +37,30 @@ fn digit2hexsym(digit: &i32) -> String {
                             .chars()
                             .nth(*digit as usize)
                             .unwrap());
+}
+
+fn score_frequencies(ascii_str: &String) -> i32 {
+    let mut freqs = HashMap::<char, u32>::new();
+    for letter in ascii_str.to_lowercase().chars() {
+        if !(letter.is_alphabetic()) { continue; }
+        let count = freqs.entry(letter).or_insert(0u32);
+        *count += 1;
+    }
+    let mut sorted_freqs: Vec<(&char, &u32)> = freqs
+                                        .iter()
+                                        .collect();
+    sorted_freqs.sort_by(|a, b| b.1.cmp(a.1));
+    let letters: String = sorted_freqs
+                            .iter()
+                            .map(|(a, _)| *a)
+                            .collect();
+    let mut score: i32 = if sorted_freqs.is_empty() { i32::MAX } else { 0 };
+    for pair in letters.chars().zip_longest(ALPHABET_RANKS.chars()) {
+        if let Both(l, r) = pair {
+            score +=  l as i32 - r as i32;
+        }
+    }
+    score.abs()
 }
 
 pub fn hextobin(num_str: &String) -> String {
@@ -110,13 +137,20 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
     bintohex(&String::from_utf8(res).unwrap())
 }
 
-pub fn decrypt_singlebyteXOR(ciphertext: &String) -> String {
-    let bin_ciphertext = hextobin(&ciphertext);
+pub fn decrypt_singlebyte_xor(ciphertext: &String) -> String {
+    let mut scores = Vec::<(String, i32)>::new();
+    let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
     for elem in 0..=255u8 {
-        let res = hex_xor(&bintohex(&format!("{:08b}", elem)
-                    .repeat(ciphertext.len())), ciphertext);
+        let key = bintohex(&format!("{:08b}", elem)
+                    .repeat(num_bytes_in_ciphertext / 8));
+        let decrypted = bintoascii(&hextobin(&hex_xor(&key, ciphertext)));
+        let score = score_frequencies(&decrypted);
+        dbg!("{}: {}", &decrypted, &score);
+        scores.push((decrypted, score));
     }
-    String::from("")
+    scores.sort_by(|a, b| b.1.cmp(&a.1));
+    scores.reverse();
+    scores[0].0.clone()
 }
 
 #[cfg(test)]
