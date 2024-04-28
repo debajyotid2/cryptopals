@@ -3,32 +3,32 @@ use std::collections::HashMap;
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const ALPHABET_RANKS: [(char, f32); 26] = [
-    ('Z', 0.074),
-    ('Q', 0.095),
-    ('X', 0.15),
-    ('J', 0.15),
-    ('K', 0.77),
-    ('V', 0.98),
-    ('B', 1.5),
-    ('P', 1.9),
-    ('Y', 2.0),
-    ('G', 2.0),
-    ('F', 2.2),
-    ('W', 2.4),
-    ('M', 2.4),
-    ('U', 2.8),
-    ('C', 2.8),
-    ('L', 4.0),
-    ('D', 4.3),
-    ('R', 6.0),
-    ('H', 6.1),
-    ('S', 6.3),
-    ('N', 6.7),
-    ('I', 7.0),
-    ('O', 7.5),
-    ('A', 8.2),
-    ('T', 9.1),
-    ('E', 12.7)
+    ('z', 0.074),
+    ('q', 0.095),
+    ('x', 0.15),
+    ('j', 0.15),
+    ('k', 0.77),
+    ('v', 0.98),
+    ('b', 1.5),
+    ('p', 1.9),
+    ('y', 2.0),
+    ('g', 2.0),
+    ('f', 2.2),
+    ('w', 2.4),
+    ('m', 2.4),
+    ('c', 2.8),
+    ('u', 2.8),
+    ('l', 4.0),
+    ('d', 4.3),
+    ('r', 6.0),
+    ('h', 6.1),
+    ('s', 6.3),
+    ('n', 6.7),
+    ('i', 7.0),
+    ('o', 7.5),
+    ('a', 8.2),
+    ('t', 9.1),
+    ('e', 12.7)
 ];
 
 fn hexsym2digit(letter: &char) -> i32 {
@@ -68,13 +68,13 @@ fn digit2hexsym(digit: &i32) -> String {
 fn score_frequencies(ascii_str: &String) -> f32 {
     let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
     let mut score: f32 = 0.0;
-    let mut total_letters: i32 = 0;
     let mut freqs = HashMap::<char, i32>::new();
-    for letter in ascii_str.to_lowercase().chars() {
-        if !(letter.is_ascii_alphabetic()) { continue; }
+    let mut total_length: f32 = 0.0;
+    for letter in ascii_str.chars() {
+        if !(letter.is_ascii_alphabetic() && letter.is_ascii_lowercase()) { continue; }
         let count = freqs.entry(letter).or_insert(0i32);
         *count += 1;
-        total_letters += 1;
+        total_length += 1.0;
     }
     if freqs.is_empty() { return std::f32::INFINITY; }
     let mut sorted_freqs: Vec<(&char, &i32)> = freqs
@@ -82,9 +82,9 @@ fn score_frequencies(ascii_str: &String) -> f32 {
                                         .collect();
     sorted_freqs.sort_by(|a, b| b.1.cmp(&a.1));
     for (letter, count) in sorted_freqs.iter() {
-        let freq = **count as f32 / total_letters as f32 * 100.0;
-        score += (alphabet_ranks[&letter.to_ascii_uppercase()] - freq) *
-                 (alphabet_ranks[&letter.to_ascii_uppercase()] - freq);
+        let freq = **count as f32 / total_length;
+        score += (alphabet_ranks[&letter] / 100.0 - freq) *
+                 (alphabet_ranks[&letter] / 100.0 - freq);
     }
     score
 }
@@ -163,7 +163,7 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
     bintohex(&String::from_utf8(res).unwrap())
 }
 
-pub fn decrypt_singlebyte_xor(ciphertext: &String) -> String {
+pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
     let mut scores = Vec::<(String, f32)>::new();
     let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
     for elem in 0..=255u8 {
@@ -171,16 +171,59 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> String {
                     .repeat(num_bytes_in_ciphertext / 8));
         let decrypted = bintoascii(&hextobin(&hex_xor(&key, ciphertext)));
         let score = score_frequencies(&decrypted);
-        dbg!("{}: {}", &decrypted, &score);
         scores.push((decrypted, score));
     }
     scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     scores.reverse();
 
-    for count in 0..10 {
-        dbg!("{}", &scores[count]);
+    let res = scores
+                .iter()
+                .map(|(a, _)| a.clone())
+                .collect::<Vec<String>>();
+    res[0..5].to_vec()
+}
+
+pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
+    let bin_ciphertext: String = hextobin(ciphertext);
+    let mut ciphertext_freqs = HashMap::<u8, f32>::new();
+    let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
+    let mut scores = Vec::<(u8, f32)>::new();
+    
+    for elem in 0..=255u8 {
+        let count = ciphertext_freqs.entry(elem).or_insert(0.0f32);
+        *count += bin_ciphertext
+                    .matches((format!("{:08b}", elem)).as_str())
+                    .collect::<Vec<_>>()
+                    .len() as f32;
+        *count /= bin_ciphertext.len() as f32 / 8.0;
     }
-    scores[0].0.clone()
+
+    dbg!("{:?}", &ciphertext_freqs);
+    
+    for elem in 0..=255u8 {
+        let mut score: f32 = 0.0;
+        for (letter, freq) in alphabet_ranks.iter() {
+            score += (freq / 100.0 - ciphertext_freqs[&(*letter as u8 ^ elem)]).powi(2);
+        }
+        scores.push((elem, score));
+    }
+    scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    scores.reverse();
+
+    let mut res = Vec::<String>::new();
+    for count in 0..5 {
+        res.push(bintoascii(
+                    &hextobin(
+                        &hex_xor(ciphertext, 
+                            &bintohex(&format!("{:08b}", scores[count].0)
+                                        .repeat(bin_ciphertext.len() / 8))
+                    )
+                )
+            )
+        );
+        dbg!("{}: {}", scores[count].0, scores[count].1);
+    }
+    res
 }
 
 #[cfg(test)]
