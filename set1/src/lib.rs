@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::iter::zip;
 
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -128,6 +129,16 @@ pub fn asciitobin(ascii_str: &String) -> String {
         .map(|a| format!("{:08b}", a))
         .collect::<Vec<_>>()
         .join("")
+}
+
+pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> u32 {
+    if ascii_str1.len() != ascii_str2.len() {
+        panic!("ASCII strings should be of the same length");
+    }
+    zip(asciitobin(&ascii_str1).chars(), 
+        asciitobin(&ascii_str2).chars())
+        .map(|(a, b)| (a != b) as u32)
+        .sum()
 }
 
 pub fn hextobase64(hex: &String) -> String {
@@ -265,6 +276,10 @@ pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> Strin
     hex_xor(&bintohex(&bin_plaintext), &bintohex(&repeating_key))
 }
 
+pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
+    String::from("")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,6 +340,12 @@ mod tests {
     fn test_asciitobin() {
         let ascii_str = String::from("I eat mouse");
         assert_eq!(asciitobin(&ascii_str), String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101"));
+    }
+
+    #[test]
+    fn test_edit_distance() {
+        assert_eq!(edit_distance(&String::from("this is a test"),
+                                &String::from("wokka wokka!!!")), 37u32);
     }
 
     #[test]
