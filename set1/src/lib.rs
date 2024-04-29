@@ -294,4 +294,17 @@ mod tests {
         let bin_str = String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101");
         assert_eq!(bintoascii(&bin_str), String::from("I eat mouse"));
     }
+
+    #[test]
+    fn test_decrypt_singlebyte_xor() {
+        let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
+        assert_eq!((decrypt_singlebyte_xor(&ciphertext)).len(), 5);
+    }
+
+    #[test]
+    fn test_decrypt_singlebyte_xor_faster() {
+        let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
+        assert_eq!((decrypt_singlebyte_xor_faster(&ciphertext)).len(), 5);
+    }
+
 }
