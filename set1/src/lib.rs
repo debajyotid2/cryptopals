@@ -121,6 +121,15 @@ pub fn bintoascii(bin_str: &String) -> String {
         .collect::<String>()
 }
 
+pub fn asciitobin(ascii_str: &String) -> String {
+    ascii_str
+        .as_bytes()
+        .iter()
+        .map(|a| format!("{:08b}", a))
+        .collect::<Vec<_>>()
+        .join("")
+}
+
 pub fn hextobase64(hex: &String) -> String {
     bintobase64(&hextobin(hex))
 }
@@ -293,6 +302,12 @@ mod tests {
     fn test_bintoascii() {
         let bin_str = String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101");
         assert_eq!(bintoascii(&bin_str), String::from("I eat mouse"));
+    }
+
+    #[test]
+    fn test_asciitobin() {
+        let ascii_str = String::from("I eat mouse");
+        assert_eq!(asciitobin(&ascii_str), String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101"));
     }
 
     #[test]
