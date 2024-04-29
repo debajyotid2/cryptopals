@@ -197,12 +197,12 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
     // Sort scores
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-    // Return plaintexts from top 5 lowest scoring keys
+    // Return plaintexts from top 10 lowest scoring keys
     let res = scores
                 .iter()
                 .map(|(a, _)| a.clone())
                 .collect::<Vec<String>>();
-    res[0..5].to_vec()
+    res[0..10].to_vec()
 }
 
 pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
@@ -238,9 +238,9 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
     // Sort the scores
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
     
-    // Decrypt for top 5 lowest scoring keys and return the plaintexts
+    // Decrypt for top 10 lowest scoring keys and return the plaintexts
     let mut res = Vec::<String>::new();
-    for count in 0..5 {
+    for count in 0..10 {
         let key = bintohex(&format!("{:08b}", scores[count].0)
                                 .repeat(bin_ciphertext.len() / 8));
         res.push(bintoascii(&hextobin(&hex_xor(&key, ciphertext))));
