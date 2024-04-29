@@ -65,29 +65,6 @@ fn digit2hexsym(digit: &i32) -> String {
                             .unwrap());
 }
 
-fn score_frequencies(ascii_str: &String) -> f32 {
-    let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
-    let mut score: f32 = 0.0;
-    let mut freqs = HashMap::<char, i32>::new();
-    let mut total_length: f32 = 0.0;
-    for letter in ascii_str.chars() {
-        if !(letter.is_ascii_alphabetic() && letter.is_ascii_lowercase()) { continue; }
-        let count = freqs.entry(letter).or_insert(0i32);
-        *count += 1;
-        total_length += 1.0;
-    }
-    if freqs.is_empty() { return std::f32::INFINITY; }
-    let mut sorted_freqs: Vec<(&char, &i32)> = freqs
-                                        .iter()
-                                        .collect();
-    sorted_freqs.sort_by(|a, b| b.1.cmp(&a.1));
-    for (letter, count) in sorted_freqs.iter() {
-        let freq = **count as f32 / total_length;
-        score += (alphabet_ranks[&letter] / 100.0 - freq).abs();
-    }
-    score
-}
-
 pub fn hextobin(num_str: &String) -> String {
     num_str
         .chars()
@@ -165,11 +142,41 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
 pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
     let mut scores = Vec::<(String, f32)>::new();
     let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
+    let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
+    
     for elem in 0..=255u8 {
         let key = bintohex(&format!("{:08b}", elem)
                     .repeat(num_bytes_in_ciphertext / 8));
         let decrypted = bintoascii(&hextobin(&hex_xor(&key, ciphertext)));
-        let score = score_frequencies(&decrypted);
+        
+        let mut score: f32 = 0.0;
+        let mut freqs = HashMap::<char, i32>::new();
+        let mut total_length: f32 = 0.0;
+        
+        for letter in decrypted.chars() {
+            if !(letter.is_ascii_alphabetic() &&
+                 letter.is_ascii_lowercase()) {
+                continue;
+            }
+            let count = freqs.entry(letter).or_insert(0i32);
+            *count += 1;
+            total_length += 1.0;
+        }
+        if freqs.is_empty() { 
+            score = std::f32::INFINITY;
+            scores.push((decrypted, score));
+            continue;
+        }
+
+        let mut sorted_freqs: Vec<(&char, &i32)> = freqs
+                                            .iter()
+                                            .collect();
+        sorted_freqs.sort_by(|a, b| b.1.cmp(&a.1));
+        for (letter, count) in sorted_freqs.iter() {
+            let freq = **count as f32 / total_length;
+            score += (alphabet_ranks[&letter] / 100.0 - freq).abs();
+        }
+
         scores.push((decrypted, score));
     }
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
@@ -199,7 +206,8 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
     for elem in 0..=255u8 {
         let mut score: f32 = 0.0;
         for (letter, freq) in alphabet_ranks.iter() {
-            score += (freq / 100.0 - ciphertext_freqs[&(*letter as u8 ^ elem)]).abs();
+            score += (freq / 100.0 -
+                ciphertext_freqs[&(*letter as u8 ^ elem)]).abs();
         }
         scores.push((elem, score));
     }
