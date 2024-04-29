@@ -83,8 +83,7 @@ fn score_frequencies(ascii_str: &String) -> f32 {
     sorted_freqs.sort_by(|a, b| b.1.cmp(&a.1));
     for (letter, count) in sorted_freqs.iter() {
         let freq = **count as f32 / total_length;
-        score += (alphabet_ranks[&letter] / 100.0 - freq) *
-                 (alphabet_ranks[&letter] / 100.0 - freq);
+        score += (alphabet_ranks[&letter] / 100.0 - freq).abs();
     }
     score
 }
@@ -173,8 +172,7 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
         let score = score_frequencies(&decrypted);
         scores.push((decrypted, score));
     }
-    scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-    scores.reverse();
+    scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
     let res = scores
                 .iter()
@@ -198,30 +196,20 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
         *count /= bin_ciphertext.len() as f32 / 8.0;
     }
 
-    dbg!("{:?}", &ciphertext_freqs);
-    
     for elem in 0..=255u8 {
         let mut score: f32 = 0.0;
         for (letter, freq) in alphabet_ranks.iter() {
-            score += (freq / 100.0 - ciphertext_freqs[&(*letter as u8 ^ elem)]).powi(2);
+            score += (freq / 100.0 - ciphertext_freqs[&(*letter as u8 ^ elem)]).abs();
         }
         scores.push((elem, score));
     }
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    scores.reverse();
 
     let mut res = Vec::<String>::new();
     for count in 0..5 {
-        res.push(bintoascii(
-                    &hextobin(
-                        &hex_xor(ciphertext, 
-                            &bintohex(&format!("{:08b}", scores[count].0)
-                                        .repeat(bin_ciphertext.len() / 8))
-                    )
-                )
-            )
-        );
-        dbg!("{}: {}", scores[count].0, scores[count].1);
+        let key = bintohex(&format!("{:08b}", scores[count].0)
+                                .repeat(bin_ciphertext.len() / 8));
+        res.push(bintoascii(&hextobin(&hex_xor(&key, ciphertext))));
     }
     res
 }
