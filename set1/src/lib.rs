@@ -148,6 +148,13 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
     bintohex(&String::from_utf8(res).unwrap())
 }
 
+pub fn encrypt_singlebyte_xor(ascii_str: &String, key: u8) -> String {
+    let bin_plaintext = asciitobin(&ascii_str);
+    hex_xor(&bintohex(&bin_plaintext), 
+                &bintohex(&format!("{:08b}", key)
+                    .repeat(bin_plaintext.len() / 8)))
+}
+
 pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
     let mut scores = Vec::<(String, f32)>::new();
     let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
@@ -248,6 +255,16 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
     res
 }
 
+pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> String {
+    let bin_plaintext = asciitobin(&ascii_str);
+    let bin_key = asciitobin(&ascii_key);
+    let mut repeating_key = bin_key
+                            .repeat(bin_plaintext.len() / bin_key.len());
+    repeating_key.push_str(
+        &bin_key[..(bin_plaintext.len() % bin_key.len())]);
+    hex_xor(&bintohex(&bin_plaintext), &bintohex(&repeating_key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,15 +328,28 @@ mod tests {
     }
 
     #[test]
+    fn test_encrypt_singlebyte_xor() {
+        let plaintext = String::from("Cooking MC's like a pound of bacon");
+        assert_eq!(encrypt_singlebyte_xor(&plaintext, 88u8), String::from("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"));
+    }
+
+    #[test]
     fn test_decrypt_singlebyte_xor() {
         let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
-        assert_eq!((decrypt_singlebyte_xor(&ciphertext)).len(), 5);
+        assert_eq!((decrypt_singlebyte_xor(&ciphertext)).len(), 10);
     }
 
     #[test]
     fn test_decrypt_singlebyte_xor_faster() {
         let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
-        assert_eq!((decrypt_singlebyte_xor_faster(&ciphertext)).len(), 5);
+        assert_eq!((decrypt_singlebyte_xor_faster(&ciphertext)).len(), 10);
     }
-
+    
+    #[test]
+    fn test_encrypt_repeatingkey_xor() {
+        let plaintext = String::from("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal");
+        let key = String::from("ICE");
+        assert_eq!(encrypt_repeatingkey_xor(&plaintext, &key), 
+                                String::from("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"));
+    }
 }
