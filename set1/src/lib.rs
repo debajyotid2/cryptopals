@@ -145,6 +145,7 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
     let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
     
     for elem in 0..=255u8 {
+        // Attempt decryption using candidate key
         let key = bintohex(&format!("{:08b}", elem)
                     .repeat(num_bytes_in_ciphertext / 8));
         let decrypted = bintoascii(&hextobin(&hex_xor(&key, ciphertext)));
@@ -153,6 +154,8 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
         let mut freqs = HashMap::<char, i32>::new();
         let mut total_length: f32 = 0.0;
         
+        // Count frequencies of lowercase alphabet characters
+        // in the decrypted text
         for letter in decrypted.chars() {
             if !(letter.is_ascii_alphabetic() &&
                  letter.is_ascii_lowercase()) {
@@ -168,6 +171,8 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
             continue;
         }
 
+        // Score the decrypted string according to closeness to
+        // expected frequencies of lowercase letters
         let mut sorted_freqs: Vec<(&char, &i32)> = freqs
                                             .iter()
                                             .collect();
@@ -179,8 +184,11 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<String> {
 
         scores.push((decrypted, score));
     }
+
+    // Sort scores
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
+    // Return plaintexts from top 5 lowest scoring keys
     let res = scores
                 .iter()
                 .map(|(a, _)| a.clone())
@@ -194,6 +202,7 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
     let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
     let mut scores = Vec::<(u8, f32)>::new();
     
+    // Count frequencies of all possible bytes in the ciphertext
     for elem in 0..=255u8 {
         let count = ciphertext_freqs.entry(elem).or_insert(0.0f32);
         *count += bin_ciphertext
@@ -202,7 +211,12 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
                     .len() as f32;
         *count /= bin_ciphertext.len() as f32 / 8.0;
     }
-
+    
+    // Since the algorithm is a single character Caesar cipher,
+    // the frequency counts are just a permutation of the frequency
+    // counts of the actual characters. 
+    // For each byte, score it based on the frequencies counted
+    // from the ciphertext relative to the expected frequencies.
     for elem in 0..=255u8 {
         let mut score: f32 = 0.0;
         for (letter, freq) in alphabet_ranks.iter() {
@@ -211,8 +225,11 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<String> {
         }
         scores.push((elem, score));
     }
+    
+    // Sort the scores
     scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
+    
+    // Decrypt for top 5 lowest scoring keys and return the plaintexts
     let mut res = Vec::<String>::new();
     for count in 0..5 {
         let key = bintohex(&format!("{:08b}", scores[count].0)
