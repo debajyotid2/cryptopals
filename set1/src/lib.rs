@@ -83,6 +83,15 @@ fn digit2hexsym(digit: &i32) -> String {
                             .unwrap());
 }
 
+fn hamming_weight(mut val: u8) -> u32 {
+    let mut weight = 0u32;
+    while val != 0u8 {
+        weight += (val & 1) as u32;
+        val >>= 1;
+    }
+    weight
+}
+
 pub fn hextobin(num_str: &String) -> String {
     num_str
         .chars()
@@ -156,6 +165,17 @@ pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> u32 {
         asciitobin(&ascii_str2).chars())
         .map(|(a, b)| (a != b) as u32)
         .sum()
+}
+
+pub fn edit_distance_2(ascii_str1: &String, ascii_str2: &String) -> u32 {
+    if ascii_str1.len() != ascii_str2.len() {
+        panic!("ASCII strings should be of the same length");
+    }
+    zip(ascii_str1.chars(), 
+        ascii_str2.chars())
+        .map(|(a, b)| a as u8 ^ b as u8)
+        .map(hamming_weight)
+        .sum::<u32>()
 }
 
 pub fn hextobase64(hex: &String) -> String {
@@ -294,16 +314,41 @@ pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> Strin
 }
 
 pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
+    // Try to find the length of the repeating key from the 
+    // Hamming distance between blocks of first keysize bytes
     let mut normalized_dist = Vec::<(u32, f32)>::new();
     for keysize in 2..=35usize {
-        let normalized = edit_distance(
-                        &ciphertext[..(keysize * 8)].to_string(), 
-                        &ciphertext[(keysize * 8)..(2 * keysize * 8)].to_string()) 
-                as f32 / keysize as f32;
+        let mut normalized = 0.0f32;
+        if 4 * keysize * 8 < ciphertext.len() {
+            for count in 0..3 {
+                normalized += edit_distance(
+                    &ciphertext
+                        .get((count * keysize * 8)..((count + 1) * keysize * 8))
+                        .unwrap()
+                        .to_string(), 
+                    &ciphertext
+                        .get(((count + 1) * keysize * 8)..((count + 2) * keysize * 8))
+                        .unwrap()
+                        .to_string()) 
+                    as f32 / keysize as f32;
+            }
+            normalized /= 4.0f32;
+        } else {
+            normalized = edit_distance(
+                            &ciphertext[..(keysize * 8)].to_string(), 
+                            &ciphertext[(keysize * 8)..(2 * keysize * 8)].to_string()) 
+                    as f32 / keysize as f32;
+        }
         normalized_dist.push((keysize.try_into().unwrap(), normalized));
     }
     normalized_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    dbg!("{:?}", &normalized_dist);
 
+    normalized_dist.clear();
+    normalized_dist.push((3u32, 0.0));
+    normalized_dist.push((4u32, 0.1));
+    
+    // Take keysizes with lowest two edit distances
     for count in 0..2 {
         let parts: Vec<String> = ciphertext
                           .as_bytes()
@@ -312,6 +357,10 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
                                       .unwrap())
                           .map(|a| String::from_utf8(a.to_vec()).unwrap())
                           .collect();
+
+        // For each key size, gather the bytes from the ciphertext
+        // in intervals of the key size. Then decrypt the gathered
+        // strings as if they are single byte XOR encrypted.
         let mut to_decrypt = Vec::<String>::new();
         for size in 0..normalized_dist[count].0 {
             let start_idx: usize = (8 * size).try_into().unwrap();
@@ -326,14 +375,14 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
                         .join("");
             to_decrypt.push(collected);
         }
-        let decrypted_keys: Vec<u8> = to_decrypt
+        let decrypted_keys: Vec<Vec<char>> = to_decrypt
                             .iter_mut()
                             .map(|a| decrypt_singlebyte_xor(&a))
-                            .map(|b| b[0].key)
+                            .map(|b| b.iter().map(|a| a.key as char).collect::<Vec<char>>())
                             .collect();
-        dbg!("{} {:?}", count, &decrypted_keys);
+        dbg!("{} {} {:?}", count,normalized_dist[count].0, &decrypted_keys);
     }
-    String::from("")
+    String::new()
 }
 
 #[cfg(test)]
@@ -395,7 +444,8 @@ mod tests {
     #[test]
     fn test_asciitobin() {
         let ascii_str = String::from("I eat mouse");
-        assert_eq!(asciitobin(&ascii_str), String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101"));
+        assert_eq!(asciitobin(&ascii_str), 
+            String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101"));
     }
 
     #[test]
@@ -405,9 +455,16 @@ mod tests {
     }
 
     #[test]
+    fn test_edit_distance_2() {
+        assert_eq!(edit_distance(&String::from("this is a test"),
+                                &String::from("wokka wokka!!!")), 37u32);
+    }
+
+    #[test]
     fn test_encrypt_singlebyte_xor() {
         let plaintext = String::from("Cooking MC's like a pound of bacon");
-        assert_eq!(encrypt_singlebyte_xor(&plaintext, 88u8), String::from("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"));
+        assert_eq!(encrypt_singlebyte_xor(&plaintext, 88u8), 
+            String::from("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"));
     }
 
     #[test]
@@ -427,6 +484,6 @@ mod tests {
         let plaintext = String::from("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal");
         let key = String::from("ICE");
         assert_eq!(encrypt_repeatingkey_xor(&plaintext, &key), 
-                                String::from("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"));
+                    String::from("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"));
     }
 }
