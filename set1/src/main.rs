@@ -10,7 +10,7 @@ fn main() {
     // let matches = decrypt_singlebyte_xor_faster(&ciphertext);
     // for count in 0..5 {
     //     println!("----------------------------------------");
-    //     println!("Match {}: {}", count + 1, &matches[count]);
+    //     println!("Match {}: {}", count + 1, &matches[count].plaintext);
     //     println!("----------------------------------------");
     // }
     
@@ -20,7 +20,7 @@ fn main() {
     //     let matches = decrypt_singlebyte_xor(&line.to_string());
     //     println!("----------------------------------------------");
     //     for count in 0..2 {
-    //         println!("Match {}: {}", count + 1, &matches[count]);
+    //         println!("Match {}: {}", count + 1, &matches[count].plaintext);
     //     }
     //     println!("----------------------------------------------");
     // }
