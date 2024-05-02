@@ -167,13 +167,13 @@ pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> u32 {
         .sum()
 }
 
-pub fn edit_distance_2(ascii_str1: &String, ascii_str2: &String) -> u32 {
-    if ascii_str1.len() != ascii_str2.len() {
+pub fn edit_distance_2(buf1: &Vec<u8>, buf2: &Vec<u8>) -> u32 {
+    if buf1.len() != buf2.len() {
         panic!("ASCII strings should be of the same length");
     }
-    zip(ascii_str1.chars(), 
-        ascii_str2.chars())
-        .map(|(a, b)| a as u8 ^ b as u8)
+    zip(buf1.iter(), 
+        buf2.iter())
+        .map(|(a, b)| a ^ b)
         .map(hamming_weight)
         .sum::<u32>()
 }
@@ -313,30 +313,41 @@ pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> Strin
     hex_xor(&bintohex(&bin_plaintext), &bintohex(&repeating_key))
 }
 
-pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
+pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> Vec<u8> {
     // Try to find the length of the repeating key from the 
     // Hamming distance between blocks of first keysize bytes
     let mut normalized_dist = Vec::<(u32, f32)>::new();
     for keysize in 2..=35usize {
         let mut normalized = 0.0f32;
-        if 4 * keysize * 8 < ciphertext.len() {
+        if 4 * keysize < ciphertext.as_bytes().len() {
             for count in 0..3 {
-                normalized += edit_distance(
+                normalized += edit_distance_2(
                     &ciphertext
-                        .get((count * keysize * 8)..((count + 1) * keysize * 8))
+                        .as_bytes()
+                        .get((count * keysize)..((count + 1) * keysize))
                         .unwrap()
-                        .to_string(), 
+                        .to_vec(),
                     &ciphertext
-                        .get(((count + 1) * keysize * 8)..((count + 2) * keysize * 8))
+                        .as_bytes()
+                        .get(((count + 1) * keysize)..((count + 2) * keysize))
                         .unwrap()
-                        .to_string()) 
-                    as f32 / keysize as f32;
+                        .to_vec()
+                    ) as f32 / keysize as f32;
             }
             normalized /= 4.0f32;
         } else {
-            normalized = edit_distance(
-                            &ciphertext[..(keysize * 8)].to_string(), 
-                            &ciphertext[(keysize * 8)..(2 * keysize * 8)].to_string()) 
+            normalized = edit_distance_2(
+                            &ciphertext
+                                .as_bytes()
+                                .get(..keysize)
+                                .unwrap()
+                                .to_vec(),
+                            &ciphertext
+                                .as_bytes()
+                                .get(keysize..(2 * keysize))
+                                .unwrap()
+                                .to_vec()
+                            ) 
                     as f32 / keysize as f32;
         }
         normalized_dist.push((keysize.try_into().unwrap(), normalized));
@@ -349,40 +360,40 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &String) -> String {
     normalized_dist.push((4u32, 0.1));
     
     // Take keysizes with lowest two edit distances
-    for count in 0..2 {
-        let parts: Vec<String> = ciphertext
-                          .as_bytes()
-                          .chunks((normalized_dist[count].0 * 8)
-                                      .try_into()
-                                      .unwrap())
-                          .map(|a| String::from_utf8(a.to_vec()).unwrap())
-                          .collect();
+    // for count in 0..2 {
+    //     let parts: Vec<String> = ciphertext
+    //                       .as_bytes()
+    //                       .chunks((normalized_dist[count].0 * 8)
+    //                                   .try_into()
+    //                                   .unwrap())
+    //                       .map(|a| String::from_utf8(a.to_vec()).unwrap())
+    //                       .collect();
 
-        // For each key size, gather the bytes from the ciphertext
-        // in intervals of the key size. Then decrypt the gathered
-        // strings as if they are single byte XOR encrypted.
-        let mut to_decrypt = Vec::<String>::new();
-        for size in 0..normalized_dist[count].0 {
-            let start_idx: usize = (8 * size).try_into().unwrap();
-            let end_idx: usize = (8 * (size + 1)).try_into().unwrap();
-            let collected: String = parts
-                        .iter()
-                        .map(|a| match a.get(start_idx..end_idx) {
-                            Some(b) => b,
-                            None => "",
-                        })
-                        .collect::<Vec<_>>()
-                        .join("");
-            to_decrypt.push(collected);
-        }
-        let decrypted_keys: Vec<Vec<char>> = to_decrypt
-                            .iter_mut()
-                            .map(|a| decrypt_singlebyte_xor(&a))
-                            .map(|b| b.iter().map(|a| a.key as char).collect::<Vec<char>>())
-                            .collect();
-        dbg!("{} {} {:?}", count,normalized_dist[count].0, &decrypted_keys);
-    }
-    String::new()
+    //     // For each key size, gather the bytes from the ciphertext
+    //     // in intervals of the key size. Then decrypt the gathered
+    //     // strings as if they are single byte XOR encrypted.
+    //     let mut to_decrypt = Vec::<String>::new();
+    //     for size in 0..normalized_dist[count].0 {
+    //         let start_idx: usize = (8 * size).try_into().unwrap();
+    //         let end_idx: usize = (8 * (size + 1)).try_into().unwrap();
+    //         let collected: String = parts
+    //                     .iter()
+    //                     .map(|a| match a.get(start_idx..end_idx) {
+    //                         Some(b) => b,
+    //                         None => "",
+    //                     })
+    //                     .collect::<Vec<_>>()
+    //                     .join("");
+    //         to_decrypt.push(collected);
+    //     }
+    //     let decrypted_keys: Vec<Vec<char>> = to_decrypt
+    //                         .iter_mut()
+    //                         .map(|a| decrypt_singlebyte_xor(&a))
+    //                         .map(|b| b.iter().map(|a| a.key as char).collect::<Vec<char>>())
+    //                         .collect();
+    //     dbg!("{} {} {:?}", count,normalized_dist[count].0, &decrypted_keys);
+    // }
+    Vec::<u8>::new()
 }
 
 #[cfg(test)]
@@ -456,8 +467,12 @@ mod tests {
 
     #[test]
     fn test_edit_distance_2() {
-        assert_eq!(edit_distance(&String::from("this is a test"),
-                                &String::from("wokka wokka!!!")), 37u32);
+        assert_eq!(edit_distance_2(&String::from("this is a test")
+                                    .as_bytes()
+                                    .to_vec(),
+                                &String::from("wokka wokka!!!")
+                                    .as_bytes()
+                                    .to_vec()), 37u32);
     }
 
     #[test]
