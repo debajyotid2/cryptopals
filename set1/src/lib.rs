@@ -257,24 +257,17 @@ pub fn base64tohex(base64: &String) -> String {
 }
 
 pub fn hex_xor(buf1: &String, buf2: &String) -> String {
-    let mut bin_buf1: String = hextobin(buf1);
-    let mut bin_buf2: String = hextobin(buf2);
+    let bin_buf1: Vec<u8> = hextobytearray(buf1);
+    let bin_buf2: Vec<u8> = hextobytearray(buf2);
     if bin_buf1.len() != bin_buf2.len() {
-    //     panic!("Buffers buf1 and buf2 should be of the same length, but have lengths {} and {}.",
-    //         bin_buf1.len(), bin_buf2.len());
-        let diff = bin_buf1.len() as i32 - bin_buf2.len() as i32;
-        let padding = String::from("0").repeat(diff.abs() as usize);
-        if diff > 0 {
-            bin_buf1 = format!("{}{}", padding, bin_buf1);
-        } else {
-            bin_buf2 = format!("{}{}", padding, bin_buf2);
-        }
+        panic!("Buffers buf1 and buf2 should be of the same length, but have lengths {} and {}.",
+            bin_buf1.len(), bin_buf2.len());
     }
 
-    let res: Vec<u8> = std::iter::zip(bin_buf1.chars(), bin_buf2.chars())
-                            .map(|(a, b)| (a as u8 - 48) ^ (b as u8 - 48) + 48)
+    let res: Vec<u8> = std::iter::zip(bin_buf1.iter(), bin_buf2.iter())
+                            .map(|(a, b)| a ^ b)
                             .collect();
-    bintohex(&String::from_utf8(res).unwrap())
+    bytearraytohex(&res)
 }
 
 pub fn encrypt_singlebyte_xor(ascii_str: &String, key: u8) -> String {
