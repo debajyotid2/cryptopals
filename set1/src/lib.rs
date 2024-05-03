@@ -100,6 +100,21 @@ pub fn hextobin(num_str: &String) -> String {
         .join("")
 }
 
+pub fn hextobytearray(num_str: &String) -> Vec<u8> {
+    num_str
+        .as_bytes()
+        .chunks(2)
+        .map(|a| a
+                .into_iter()
+                .map(|el| String::from_utf8(vec![*el]).unwrap())
+                .reduce(|acc, el| acc.to_owned() + el.as_str()))
+        .map(|el| el.unwrap_or(String::from("")))
+        .map(|el| hexsym2digit(&el.chars().nth(0).unwrap()) * 16 +
+                  hexsym2digit(&el.chars().nth(1).unwrap()))
+        .map(|el| el.try_into().unwrap())
+        .collect::<Vec<u8>>()
+}
+
 pub fn base64tobin(num_str: &String) -> String {
     let bin_uncut = num_str
                         .chars()
@@ -110,6 +125,13 @@ pub fn base64tobin(num_str: &String) -> String {
         .split_at(bin_uncut.len() - bin_uncut.len() % 8)
         .0
         .to_string()
+}
+
+pub fn base64tobytearray(num_str: &String) -> Vec<u8> {
+    num_str
+        .chars()
+        .map(|el| base64sym2digit(&el))
+        .collect::<Vec<u8>>()
 }
 
 pub fn bintobase64(num_str: &String) -> String {
@@ -406,8 +428,14 @@ mod tests {
 
     #[test]
     fn test_hextobin() {
-        let hex = String::from("f1da6");
-        assert_eq!(hextobin(&hex), "11110001110110100110");
+        let hex = String::from("0f1da6");
+        assert_eq!(hextobin(&hex), "000011110001110110100110");
+    }
+
+    #[test]
+    fn test_hextobytearray() {
+        let hex = String::from("0f1da6");
+        assert_eq!(hextobytearray(&hex), vec![15u8, 29u8, 166u8]);
     }
 
     #[test]
@@ -418,8 +446,8 @@ mod tests {
 
     #[test]
     fn test_bintohex() {
-        let bin = String::from("11110001110110100110");
-        assert_eq!(bintohex(&bin), "f1da6");
+        let bin = String::from("000011110001110110100110");
+        assert_eq!(bintohex(&bin), "0f1da6");
     }
 
     #[test]
