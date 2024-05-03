@@ -167,15 +167,13 @@ pub fn bintobase64(num_str: &String) -> String {
 pub fn bytearraytobase64(bytearray: &Vec<u8>) -> String {
     let mut res = String::new();
     for chunk in bytearray.chunks(3) {
-         let block_value: u32 = chunk
+        let block_value: u32 = chunk
                             .iter()
                             .enumerate()
                             .map(|(i, a)| 
                                 (*a as u32) * 2_u32.pow((8 * (2 - i)) as u32)
                              )
                             .sum();
-        dbg!("{}", &chunk);
-        println!("{:024b}", &block_value);
 
         for count in 0..(chunk.len() + 1) {
             let index: u8 = (block_value >> ((3 - count) * 6) & 0x3F)
@@ -196,6 +194,16 @@ pub fn bintohex(num_str: &String) -> String {
                             std::str::from_utf8(el)
                             .unwrap(), 2)
                         .unwrap()))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub fn bytearraytohex(bytearray: &Vec<u8>) -> String {
+    bytearray
+        .iter()
+        .map(|a| vec![(*a & 0xF0) >> 4, *a & 0x0F])
+        .flatten()
+        .map(|a| digit2hexsym(&a))
         .collect::<Vec<String>>()
         .join("")
 }
@@ -495,6 +503,12 @@ mod tests {
     fn test_bintohex() {
         let bin = String::from("000011110001110110100110");
         assert_eq!(bintohex(&bin), "0f1da6");
+    }
+
+    #[test]
+    fn test_bytearraytohex() {
+        let bin = vec![15u8, 29u8, 166u8];
+        assert_eq!(bytearraytohex(&bin), "0f1da6");
     }
 
     #[test]
