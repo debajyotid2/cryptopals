@@ -134,12 +134,12 @@ pub fn base64tobin(num_str: &String) -> String {
 pub fn base64tobytearray(num_str: &String) -> Vec<u8> {
     let mut res = Vec::<u8>::new();
     for chunk in num_str.as_bytes().chunks(4) {
-        let block_value: u64 = chunk
+        let block_value: u32 = chunk
                             .iter()
                             .enumerate()
                             .map(|(i, a)| (
-                                base64sym2digit(&(*a as char)) as u64) *
-                                2_u64.pow((6 * (3 - i)) as u32))
+                                base64sym2digit(&(*a as char)) as u32) *
+                                2_u32.pow((6 * (3 - i)) as u32))
                             .sum();
 
         for count in 0..(chunk.len() - 1) {
@@ -162,6 +162,29 @@ pub fn bintobase64(num_str: &String) -> String {
                         .unwrap()))
         .collect::<Vec<String>>()
         .join("")
+}
+
+pub fn bytearraytobase64(bytearray: &Vec<u8>) -> String {
+    let mut res = String::new();
+    for chunk in bytearray.chunks(3) {
+         let block_value: u32 = chunk
+                            .iter()
+                            .enumerate()
+                            .map(|(i, a)| 
+                                (*a as u32) * 2_u32.pow((8 * (2 - i)) as u32)
+                             )
+                            .sum();
+        dbg!("{}", &chunk);
+        println!("{:024b}", &block_value);
+
+        for count in 0..(chunk.len() + 1) {
+            let index: u8 = (block_value >> ((3 - count) * 6) & 0x3F)
+                                .try_into()
+                                .unwrap();
+            res.push_str(digit2base64sym(&index).as_str());
+        }
+    }
+    res
 }
 
 pub fn bintohex(num_str: &String) -> String {
@@ -208,7 +231,7 @@ pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> u32 {
 
 pub fn edit_distance_2(buf1: &Vec<u8>, buf2: &Vec<u8>) -> u32 {
     if buf1.len() != buf2.len() {
-        panic!("ASCII strings should be of the same length");
+        panic!("Buffers should be of the same length");
     }
     zip(buf1.iter(), 
         buf2.iter())
@@ -478,6 +501,12 @@ mod tests {
     fn test_bintobase64() {
         let bin = String::from("100001011101100011011110");
         assert_eq!(bintobase64(&bin), "hdje");
+    }
+
+    #[test]
+    fn test_bytearraytobase64() {
+        let bin = vec![133u8, 216u8, 222u8, 107u8];
+        assert_eq!(bytearraytobase64(&bin), "hdjeaw");
     }
 
     #[test]
