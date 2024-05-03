@@ -49,22 +49,22 @@ impl SinglebyteXORDecryptionAnswer {
     }
 }
 
-fn hexsym2digit(letter: &char) -> i32 {
+fn hexsym2digit(letter: &char) -> u8 {
     if let Some(index) = HEXTABLE.find(*letter) {
         return index.try_into().unwrap();
     }
     panic!("Invalid hex symbol.");
 }
 
-fn base64sym2digit(letter: &char) -> i32 {
+fn base64sym2digit(letter: &char) -> u8 {
     if let Some(index) = BASE64TABLE.find(*letter) {
         return index.try_into().unwrap();
     }
     panic!("Invalid base64 character.");
 }
 
-fn digit2base64sym(digit: &i32) -> String {
-    if *digit < 0 || *digit > 63 {
+fn digit2base64sym(digit: &u8) -> String {
+    if *digit > 63 {
         panic!("Invalid base64 character.");
     }
     return String::from(BASE64TABLE
@@ -73,8 +73,8 @@ fn digit2base64sym(digit: &i32) -> String {
                             .unwrap());
 }
 
-fn digit2hexsym(digit: &i32) -> String {
-    if *digit < 0 || *digit > 15 {
+fn digit2hexsym(digit: &u8) -> String {
+    if *digit > 15 {
         panic!("Invalid hex character.");
     }
     return String::from(HEXTABLE
@@ -117,7 +117,7 @@ pub fn bintobase64(num_str: &String) -> String {
         .as_bytes()
         .chunks(6)
         .map(|el| digit2base64sym(
-                        &i32::from_str_radix(
+                        &u8::from_str_radix(
                             std::str::from_utf8(el)
                             .unwrap(), 2)
                         .unwrap()))
@@ -130,7 +130,7 @@ pub fn bintohex(num_str: &String) -> String {
         .as_bytes()
         .chunks(4)
         .map(|el| digit2hexsym(
-                        &i32::from_str_radix(
+                        &u8::from_str_radix(
                             std::str::from_utf8(el)
                             .unwrap(), 2)
                         .unwrap()))
