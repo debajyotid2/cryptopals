@@ -249,11 +249,11 @@ pub fn edit_distance_2(buf1: &Vec<u8>, buf2: &Vec<u8>) -> u32 {
 }
 
 pub fn hextobase64(hex: &String) -> String {
-    bintobase64(&hextobin(hex))
+    bytearraytobase64(&hextobytearray(hex))
 }
 
 pub fn base64tohex(base64: &String) -> String {
-    bintohex(&base64tobin(base64))
+    bytearraytohex(&base64tobytearray(base64))
 }
 
 pub fn hex_xor(buf1: &String, buf2: &String) -> String {
