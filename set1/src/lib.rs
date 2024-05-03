@@ -271,10 +271,9 @@ pub fn hex_xor(buf1: &String, buf2: &String) -> String {
 }
 
 pub fn encrypt_singlebyte_xor(ascii_str: &String, key: u8) -> String {
-    let bin_plaintext = asciitobin(&ascii_str);
-    hex_xor(&bintohex(&bin_plaintext), 
-                &bintohex(&format!("{:08b}", key)
-                    .repeat(bin_plaintext.len() / 8)))
+    let bytes_plaintext = ascii_str.as_bytes().to_vec();
+    hex_xor(&bytearraytohex(&bytes_plaintext), 
+            &bytearraytohex(&vec![key].repeat(bytes_plaintext.len())))
 }
 
 pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<SinglebyteXORDecryptionAnswer> {
