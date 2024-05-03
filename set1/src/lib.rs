@@ -34,7 +34,7 @@ const ALPHABET_RANKS: [(char, f32); 26] = [
 
 #[derive(Clone)]
 pub struct SinglebyteXORDecryptionAnswer {
-    pub plaintext: String,
+    pub plaintext: Option<String>,
     pub key: u8,
     pub score: f32
 }
@@ -42,7 +42,7 @@ pub struct SinglebyteXORDecryptionAnswer {
 impl SinglebyteXORDecryptionAnswer {
     pub fn new(plaintext: String, key: u8, score: f32) -> SinglebyteXORDecryptionAnswer {
         SinglebyteXORDecryptionAnswer {
-            plaintext: plaintext,
+            plaintext: Some(plaintext),
             key: key,
             score: score
         }
@@ -278,24 +278,38 @@ pub fn encrypt_singlebyte_xor(ascii_str: &String, key: u8) -> String {
 
 pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<SinglebyteXORDecryptionAnswer> {
     let mut scores = Vec::<SinglebyteXORDecryptionAnswer>::new();
-    let num_bytes_in_ciphertext = (hextobin(&ciphertext)).len();
     let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
+    let num_bytes_in_ciphertext = (hextobytearray(&ciphertext)).len();
     
     for elem in 0..=255u8 {
         let mut ans = SinglebyteXORDecryptionAnswer::new(
                     String::from(""), elem, 0.0f32);
 
-        // Attempt decryption using candidate key
-        let key = bintohex(&format!("{:08b}", elem)
-                        .repeat(num_bytes_in_ciphertext / 8));
-        let decrypted = bintoascii(&hextobin(&hex_xor(&key, ciphertext)));
-        
+        // Attempt decryption using key
+        let key = bytearraytohex(&vec![elem]
+                            .repeat(num_bytes_in_ciphertext));
+        let bytes = hextobytearray(&hex_xor(&key, ciphertext));
+        match String::from_utf8(bytes) {
+            Ok(string) => {
+                ans.plaintext = Some(string);
+            },
+            Err(_) => {
+                ans.plaintext = None;
+                ans.score = std::f32::INFINITY;
+                scores.push(ans);
+                continue;
+            }
+        };
+
         let mut freqs = HashMap::<char, i32>::new();
         let mut total_length: f32 = 0.0;
         
         // Count frequencies of lowercase alphabet characters
         // in the decrypted text
-        for letter in decrypted.chars() {
+        for letter in ans.plaintext
+                        .as_ref()
+                        .unwrap()
+                        .chars() {
             if !(letter.is_ascii_alphabetic() &&
                  letter.is_ascii_lowercase()) {
                 continue;
@@ -304,6 +318,7 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<SinglebyteXORDecryptio
             *count += 1;
             total_length += 1.0;
         }
+
         if freqs.is_empty() { 
             ans.score = std::f32::INFINITY;
             scores.push(ans);
@@ -331,50 +346,50 @@ pub fn decrypt_singlebyte_xor(ciphertext: &String) -> Vec<SinglebyteXORDecryptio
     scores[0..10].to_vec()
 }
 
-pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<SinglebyteXORDecryptionAnswer> {
-    let bin_ciphertext: String = hextobin(ciphertext);
-    let mut ciphertext_freqs = HashMap::<u8, f32>::new();
-    let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
-    let mut scores = Vec::<SinglebyteXORDecryptionAnswer>::new();
-    
-    // Count frequencies of all possible bytes in the ciphertext
-    for elem in 0..=255u8 {
-        let count = ciphertext_freqs.entry(elem).or_insert(0.0f32);
-        *count += bin_ciphertext
-                    .matches((format!("{:08b}", elem)).as_str())
-                    .collect::<Vec<_>>()
-                    .len() as f32;
-        *count /= bin_ciphertext.len() as f32 / 8.0;
-    }
-    
-    // Since the algorithm is a single character Caesar cipher,
-    // the frequency counts are just a permutation of the frequency
-    // counts of the actual characters. 
-    // For each byte, score it based on the frequencies counted
-    // from the ciphertext relative to the expected frequencies.
-    for elem in 0..=255u8 {
-        let mut ans = SinglebyteXORDecryptionAnswer::new(
-                String::from(""), elem, 0.0f32
-            );
-        for (letter, freq) in alphabet_ranks.iter() {
-            ans.score += (freq / 100.0 -
-                ciphertext_freqs[&(*letter as u8 ^ elem)]).abs();
-        }
-        scores.push(ans);
-    }
-    
-    // Sort the scores
-    scores.sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
-    
-    // Decrypt for top 10 lowest scoring keys and return the plaintexts
-    for count in 0..10 {
-        let key = bintohex(&format!("{:08b}", scores[count].key)
-                                .repeat(bin_ciphertext.len() / 8));
-        scores[count].plaintext = bintoascii(&hextobin(
-                                    &hex_xor(&key, ciphertext)));
-    }
-    scores[0..10].to_vec()
-}
+// pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<SinglebyteXORDecryptionAnswer> {
+//     let bin_ciphertext: String = hextobin(ciphertext);
+//     let mut ciphertext_freqs = HashMap::<u8, f32>::new();
+//     let alphabet_ranks = HashMap::from(ALPHABET_RANKS);
+//     let mut scores = Vec::<SinglebyteXORDecryptionAnswer>::new();
+//     
+//     // Count frequencies of all possible bytes in the ciphertext
+//     for elem in 0..=255u8 {
+//         let count = ciphertext_freqs.entry(elem).or_insert(0.0f32);
+//         *count += bin_ciphertext
+//                     .matches((format!("{:08b}", elem)).as_str())
+//                     .collect::<Vec<_>>()
+//                     .len() as f32;
+//         *count /= bin_ciphertext.len() as f32 / 8.0;
+//     }
+//     
+//     // Since the algorithm is a single character Caesar cipher,
+//     // the frequency counts are just a permutation of the frequency
+//     // counts of the actual characters. 
+//     // For each byte, score it based on the frequencies counted
+//     // from the ciphertext relative to the expected frequencies.
+//     for elem in 0..=255u8 {
+//         let mut ans = SinglebyteXORDecryptionAnswer::new(
+//                 String::from(""), elem, 0.0f32
+//             );
+//         for (letter, freq) in alphabet_ranks.iter() {
+//             ans.score += (freq / 100.0 -
+//                 ciphertext_freqs[&(*letter as u8 ^ elem)]).abs();
+//         }
+//         scores.push(ans);
+//     }
+//     
+//     // Sort the scores
+//     scores.sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
+//     
+//     // Decrypt for top 10 lowest scoring keys and return the plaintexts
+//     for count in 0..10 {
+//         let key = bintohex(&format!("{:08b}", scores[count].key)
+//                                 .repeat(bin_ciphertext.len() / 8));
+//         scores[count].plaintext = bintoascii(&hextobin(
+//                                     &hex_xor(&key, ciphertext)));
+//     }
+//     scores[0..10].to_vec()
+// }
 
 pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> String {
     let bin_plaintext = asciitobin(&ascii_str);
@@ -579,11 +594,11 @@ mod tests {
         assert_eq!((decrypt_singlebyte_xor(&ciphertext)).len(), 10);
     }
 
-    #[test]
-    fn test_decrypt_singlebyte_xor_faster() {
-        let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
-        assert_eq!((decrypt_singlebyte_xor_faster(&ciphertext)).len(), 10);
-    }
+    // #[test]
+    // fn test_decrypt_singlebyte_xor_faster() {
+    //     let ciphertext = String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a");
+    //     assert_eq!((decrypt_singlebyte_xor_faster(&ciphertext)).len(), 10);
+    // }
     
     #[test]
     fn test_encrypt_repeatingkey_xor() {
