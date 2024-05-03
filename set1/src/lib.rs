@@ -101,14 +101,18 @@ pub fn hextobin(num_str: &String) -> String {
 }
 
 pub fn hextobytearray(num_str: &String) -> Vec<u8> {
-    num_str
-        .as_bytes()
-        .chunks(2)
-        .map(|a| a
-                .into_iter()
-                .map(|el| String::from_utf8(vec![*el]).unwrap())
-                .reduce(|acc, el| acc.to_owned() + el.as_str()))
-        .map(|el| el.unwrap_or(String::from("")))
+    if num_str.len() % 2 != 0 {
+        panic!("Hex string contains odd number of characters.");
+    }
+    let mut res = Vec::<String>::new();
+    let mut num_str_iter = num_str.chars();
+    for _ in (0..num_str.len()).step_by(2) {
+        res.push(format!("{}{}", 
+                num_str_iter.next().unwrap_or('\0'), 
+                num_str_iter.next().unwrap_or('\0')));
+    }
+    res
+        .iter()
         .map(|el| hexsym2digit(&el.chars().nth(0).unwrap()) * 16 +
                   hexsym2digit(&el.chars().nth(1).unwrap()))
         .map(|el| el.try_into().unwrap())
@@ -128,10 +132,23 @@ pub fn base64tobin(num_str: &String) -> String {
 }
 
 pub fn base64tobytearray(num_str: &String) -> Vec<u8> {
-    num_str
-        .chars()
-        .map(|el| base64sym2digit(&el))
-        .collect::<Vec<u8>>()
+    let mut res = Vec::<u8>::new();
+    for chunk in num_str.as_bytes().chunks(4) {
+        let block_value: u64 = chunk
+                            .iter()
+                            .enumerate()
+                            .map(|(i, a)| (
+                                base64sym2digit(&(*a as char)) as u64) *
+                                2_u64.pow((6 * (3 - i)) as u32))
+                            .sum();
+
+        for count in 0..(chunk.len() - 1) {
+            let byte: u8 = (((block_value >> (2 - count) * 8)) & 0xFF)
+                                .try_into().unwrap();
+            res.push(byte);
+        }
+    }
+    res
 }
 
 pub fn bintobase64(num_str: &String) -> String {
@@ -442,6 +459,13 @@ mod tests {
     fn test_base64tobin() {
         let base64 = String::from("hdje");
         assert_eq!(base64tobin(&base64), "100001011101100011011110");
+    }
+
+    #[test]
+    fn test_base64tobytearray() {
+        let base64 = String::from("hdjea2");
+        assert_eq!(base64tobytearray(&base64), 
+                   vec![133u8, 216u8, 222u8, 107u8]);
     }
 
     #[test]
