@@ -396,13 +396,13 @@ pub fn decrypt_singlebyte_xor_faster(ciphertext: &String) -> Vec<SinglebyteXORDe
 }
 
 pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> String {
-    let bin_plaintext = asciitobin(&ascii_str);
-    let bin_key = asciitobin(&ascii_key);
-    let mut repeating_key = bin_key
-                            .repeat(bin_plaintext.len() / bin_key.len());
-    repeating_key.push_str(
-        &bin_key[..(bin_plaintext.len() % bin_key.len())]);
-    hex_xor(&bintohex(&bin_plaintext), &bintohex(&repeating_key))
+    let bytes_plaintext = ascii_str.as_bytes().to_vec();
+    let bytes_key = ascii_key.as_bytes().to_vec();
+    let mut repeating_key = bytes_key
+                            .repeat(bytes_plaintext.len() / bytes_key.len());
+    repeating_key.append(
+        &mut bytes_key[..(bytes_plaintext.len() % bytes_key.len())].to_vec());
+    hex_xor(&bytearraytohex(&bytes_plaintext), &bytearraytohex(&repeating_key))
 }
 
 pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
