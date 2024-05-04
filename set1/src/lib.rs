@@ -416,12 +416,14 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
                                         .map(|a| a.to_vec())
                                         .collect();
         if 4 * keysize < ciphertext.len() {
-            normalized = (edit_distance_2(&slices[0], &slices[1]) +
-                          edit_distance_2(&slices[1], &slices[2]) +
-                          edit_distance_2(&slices[2], &slices[3]) +
-                          edit_distance_2(&slices[0], &slices[2]) +
-                          edit_distance_2(&slices[1], &slices[3]) +
-                          edit_distance_2(&slices[0], &slices[3])) as f32 / 6.0f32;
+            let distances: Vec<u32> = vec![
+                          edit_distance_2(&slices[0], &slices[1]),
+                          edit_distance_2(&slices[1], &slices[2]),
+                          edit_distance_2(&slices[2], &slices[3]),
+                          edit_distance_2(&slices[0], &slices[2]),
+                          edit_distance_2(&slices[1], &slices[3]),
+                          edit_distance_2(&slices[0], &slices[3])];
+            normalized = distances.iter().sum::<u32>() as f32 / distances.len() as f32;
             normalized /= keysize as f32;
         } else {
             continue;
@@ -431,36 +433,44 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
         normalized_dist.push((keysize, normalized));
     }
     normalized_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    dbg!("{:?}", &normalized_dist);
+    // println!("Normalized distances = {:?}", &normalized_dist);
 
-    // Take keysizes with lowest two edit distances
+    // Take keysizes with lowest five edit distances
+    let mut result = Vec::<(String, f32)>::new();
     for count in 0..5 {
-        let parts: Vec<Vec<u8>> = ciphertext
-                          .windows(normalized_dist[count].0)
-                          .map(|a| a.to_vec())
-                          .collect();
-
         // For each key size, gather the bytes from the ciphertext
         // in intervals of the key size. Then decrypt the gathered
         // strings as if they are single byte XOR encrypted.
         let mut to_decrypt = Vec::<String>::new();
-        for size in 0..normalized_dist[count].0 {
-            let collected: Vec<u8> = parts
+        // println!("Keysize = {}, Ciphertext = {:?}",
+        //     &normalized_dist[count].0, &ciphertext);
+        for idx in 1..=normalized_dist[count].0 {
+            let collected: Vec<u8> = ciphertext
                         .iter()
-                        .map(|a| a.get(size as usize))
-                        .filter(|a| *a != None)
-                        .map(|a| *a.unwrap())
+                        .skip(idx - 1)
+                        .step_by(normalized_dist[count].0)
+                        .copied()
                         .collect();
+            // println!("Collected = {:?}",&collected);
             to_decrypt.push(bytearraytohex(&collected));
         }
-        let decrypted_keys: Vec<char> = to_decrypt
+        let decrypted_keys: Vec<(u8, f32)> = to_decrypt
                             .iter()
                             .map(|a| decrypt_singlebyte_xor_faster(&a))
-                            .map(|b| b[0].key as char)
+                            .map(|b| (b[0].key, b[0].score))
                             .collect();
-        dbg!("{} {} {:?}", count, normalized_dist[count].0, &decrypted_keys);
+        // println!("Count = {}, Decrypted keys = {:?}", count, &decrypted_keys);
+        result.push((
+            String::from_utf8(
+                decrypted_keys.iter().map(|(a, _)| *a).collect::<Vec<u8>>()
+            ).unwrap(),
+            decrypted_keys.iter().map(|(_, b)| *b).sum::<f32>() / normalized_dist[count].0 as f32
+        ));
     }
-    Vec::<u8>::new()
+    result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    println!("{:?}", &result);
+    hextobytearray(&encrypt_repeatingkey_xor(&String::from_utf8(ciphertext.to_vec()).unwrap(), 
+                             &result[0].0))
 }
 
 #[cfg(test)]
