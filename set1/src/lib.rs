@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use std::iter::zip;
 
 const HEXTABLE: &str = "0123456789abcdef";
@@ -404,57 +405,40 @@ pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> Strin
     hex_xor(&bintohex(&bin_plaintext), &bintohex(&repeating_key))
 }
 
-pub fn decrypt_repeatingkey_xor(cipher_text: &String) -> Vec<u8> {
+pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
     // Try to find the length of the repeating key from the 
     // Hamming distance between blocks of first keysize bytes
-    let ciphertext: String = bintoascii(&cipher_text);
-    let mut normalized_dist = Vec::<(u32, f32)>::new();
+    let mut normalized_dist = Vec::<(usize, f32)>::new();
     for keysize in 2..=35usize {
-        let mut normalized = 0.0f32;
-        if 4 * keysize < ciphertext.as_bytes().len() {
-            let mut slices = Vec::<Vec<u8>>::new();
-            for count in 0..4 {
-                slices.push(ciphertext
-                        .as_bytes()
-                        .get((count * keysize)..((count + 1) * keysize))
-                        .unwrap()
-                        .to_vec());
-            }
-            normalized += (edit_distance_2(&slices[0], &slices[1]) +
-                            edit_distance_2(&slices[1], &slices[2]) +
-                            edit_distance_2(&slices[2], &slices[3]) +
-                            edit_distance_2(&slices[0], &slices[2]) +
-                            edit_distance_2(&slices[1], &slices[3]) +
-                            edit_distance_2(&slices[0], &slices[3])) as f32;
-            normalized /= 6.0f32 * keysize as f32;
+        let mut normalized;
+        let slices: Vec<Vec<u8>> = ciphertext
+                                        .windows(keysize)
+                                        .map(|a| a.to_vec())
+                                        .collect();
+        if 4 * keysize < ciphertext.len() {
+            normalized = (edit_distance_2(&slices[0], &slices[1]) +
+                          edit_distance_2(&slices[1], &slices[2]) +
+                          edit_distance_2(&slices[2], &slices[3]) +
+                          edit_distance_2(&slices[0], &slices[2]) +
+                          edit_distance_2(&slices[1], &slices[3]) +
+                          edit_distance_2(&slices[0], &slices[3])) as f32 / 6.0f32;
+            normalized /= keysize as f32;
         } else {
-            normalized = edit_distance_2(
-                            &ciphertext
-                                .as_bytes()
-                                .get(..keysize)
-                                .unwrap()
-                                .to_vec(),
-                            &ciphertext
-                                .as_bytes()
-                                .get(keysize..(2 * keysize))
-                                .unwrap()
-                                .to_vec()
-                            ) 
-                    as f32 / keysize as f32;
+            continue;
+            // normalized = edit_distance_2(&slices[0], &slices[1]) 
+            //                     as f32 / keysize as f32;
         }
-        normalized_dist.push((keysize.try_into().unwrap(), normalized));
+        normalized_dist.push((keysize, normalized));
     }
     normalized_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
     dbg!("{:?}", &normalized_dist);
 
     // Take keysizes with lowest two edit distances
-    for count in 0..2 {
-        let parts = ciphertext
-                          .as_bytes()
-                          .chunks(normalized_dist[count].0
-                                      .try_into()
-                                      .unwrap())
-                          .collect::<Vec<_>>();
+    for count in 0..5 {
+        let parts: Vec<Vec<u8>> = ciphertext
+                          .windows(normalized_dist[count].0)
+                          .map(|a| a.to_vec())
+                          .collect();
 
         // For each key size, gather the bytes from the ciphertext
         // in intervals of the key size. Then decrypt the gathered
@@ -467,12 +451,11 @@ pub fn decrypt_repeatingkey_xor(cipher_text: &String) -> Vec<u8> {
                         .filter(|a| *a != None)
                         .map(|a| *a.unwrap())
                         .collect();
-            to_decrypt.push(
-                bintohex(&String::from_utf8(collected).unwrap()));
+            to_decrypt.push(bytearraytohex(&collected));
         }
         let decrypted_keys: Vec<char> = to_decrypt
                             .iter()
-                            .map(|a| decrypt_singlebyte_xor(&a))
+                            .map(|a| decrypt_singlebyte_xor_faster(&a))
                             .map(|b| b[0].key as char)
                             .collect();
         dbg!("{} {} {:?}", count, normalized_dist[count].0, &decrypted_keys);
@@ -570,18 +553,20 @@ mod tests {
 
     #[test]
     fn test_edit_distance() {
-        assert_eq!(edit_distance(&String::from("this is a test"),
-                                &String::from("wokka wokka!!!")), 37u32);
+        let str1 = String::from("this is a test");
+        let str2 = String::from("wokka wokka!!!");
+        assert_eq!(edit_distance(&str1, &str2), 37u32);
+        assert_eq!(edit_distance(&str2, &str1), 37u32);
     }
 
     #[test]
     fn test_edit_distance_2() {
-        assert_eq!(edit_distance_2(&String::from("this is a test")
-                                    .as_bytes()
-                                    .to_vec(),
-                                &String::from("wokka wokka!!!")
-                                    .as_bytes()
-                                    .to_vec()), 37u32);
+        let buf1: Vec<u8> = String::from("this is a test")
+                                .as_bytes().to_vec();
+        let buf2: Vec<u8> = String::from("wokka wokka!!!")
+                                .as_bytes().to_vec();
+        assert_eq!(edit_distance_2(&buf1, &buf2), 37u32);
+        assert_eq!(edit_distance_2(&buf2, &buf1), 37u32);
     }
 
     #[test]
