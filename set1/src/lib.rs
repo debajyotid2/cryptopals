@@ -61,7 +61,7 @@ fn base64sym2digit(letter: &char) -> u8 {
     if let Some(index) = BASE64TABLE.find(*letter) {
         return index.try_into().unwrap();
     }
-    panic!("Invalid base64 character.");
+    panic!("Invalid base64 character {}.", *letter);
 }
 
 fn digit2base64sym(digit: &u8) -> String {
@@ -405,17 +405,17 @@ pub fn encrypt_repeatingkey_xor(ascii_str: &String, ascii_key: &String) -> Strin
     hex_xor(&bytearraytohex(&bytes_plaintext), &bytearraytohex(&repeating_key))
 }
 
-pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
+pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
     // Try to find the length of the repeating key from the 
-    // Hamming distance between blocks of first keysize bytes
+    // Hamming distance between blocks of keysize bytes
     let mut normalized_dist = Vec::<(usize, f32)>::new();
-    for keysize in 2..=35usize {
+    for keysize in 2..=40usize {
         let mut normalized;
         let slices: Vec<Vec<u8>> = ciphertext
-                                        .windows(keysize)
+                                        .chunks(keysize)
                                         .map(|a| a.to_vec())
                                         .collect();
-        if 4 * keysize < ciphertext.len() {
+        if slices.len() >= 4 {
             let distances: Vec<u32> = vec![
                           edit_distance_2(&slices[0], &slices[1]),
                           edit_distance_2(&slices[1], &slices[2]),
@@ -426,9 +426,8 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
             normalized = distances.iter().sum::<u32>() as f32 / distances.len() as f32;
             normalized /= keysize as f32;
         } else {
-            continue;
-            // normalized = edit_distance_2(&slices[0], &slices[1]) 
-            //                     as f32 / keysize as f32;
+            normalized = edit_distance_2(&slices[0], &slices[1]) 
+                                as f32 / keysize as f32;
         }
         normalized_dist.push((keysize, normalized));
     }
@@ -468,9 +467,8 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<u8> {
         ));
     }
     result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    println!("{:?}", &result);
-    hextobytearray(&encrypt_repeatingkey_xor(&String::from_utf8(ciphertext.to_vec()).unwrap(), 
-                             &result[0].0))
+    // println!("{:?}", &result);
+    result[0..5].to_vec()
 }
 
 #[cfg(test)]
