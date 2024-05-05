@@ -663,8 +663,6 @@ mod tests {
         let ciphertext: Vec<u8> = vec![9, 18, 48, 170, 222, 62, 179, 48, 219, 170, 67, 88, 248, 141, 42, 108];
         let key: Vec<u8> = String::from("YELLOW SUBMARINE").as_bytes().to_vec();
         let plaintext: Vec<u8> = vec![73, 39, 109, 32, 98, 97, 99, 107, 32, 97, 110, 100, 32, 73, 39, 109];
-;
-        
         assert_eq!(&decrypt_aes(&ciphertext, &key), &plaintext);
     }
 }
