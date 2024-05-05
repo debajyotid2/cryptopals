@@ -474,7 +474,6 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
         ));
     }
     result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    println!("{:?}", &result);
     result[0..5].to_vec()
 }
 
