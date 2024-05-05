@@ -70,6 +70,5 @@ fn test_challenge_6_text_decryption() {
 }
 
 fn main() {
-    test_repeating_key_xor_decryption();
-    // test_challenge_6_text_decryption();
+    test_challenge_6_text_decryption();
 }
