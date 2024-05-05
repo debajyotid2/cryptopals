@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use std::iter::zip;
 
 const HEXTABLE: &str = "0123456789abcdef";
@@ -48,6 +47,12 @@ impl SinglebyteXORDecryptionAnswer {
             score: score
         }
     }
+}
+
+// Custom error type
+#[derive(Debug)]
+pub enum Err {
+    BufferLengthError(usize, usize),
 }
 
 fn hexsym2digit(letter: &char) -> u8 {
@@ -228,25 +233,27 @@ pub fn asciitobin(ascii_str: &String) -> String {
         .join("")
 }
 
-pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> u32 {
+pub fn edit_distance(ascii_str1: &String, ascii_str2: &String) -> Result<u32, Err> {
     if ascii_str1.len() != ascii_str2.len() {
-        panic!("ASCII strings should be of the same length");
+        Err(Err::BufferLengthError(ascii_str1.len(), ascii_str2.len()))
+    } else {
+        Ok(zip(asciitobin(&ascii_str1).chars(), 
+            asciitobin(&ascii_str2).chars())
+            .map(|(a, b)| (a != b) as u32)
+            .sum())
     }
-    zip(asciitobin(&ascii_str1).chars(), 
-        asciitobin(&ascii_str2).chars())
-        .map(|(a, b)| (a != b) as u32)
-        .sum()
 }
 
-pub fn edit_distance_2(buf1: &Vec<u8>, buf2: &Vec<u8>) -> u32 {
+pub fn edit_distance_2(buf1: &Vec<u8>, buf2: &Vec<u8>) -> Result<u32, Err> {
     if buf1.len() != buf2.len() {
-        panic!("Buffers should be of the same length");
+        Err(Err::BufferLengthError(buf1.len(), buf2.len()))
+    } else {
+        Ok(zip(buf1.iter(), 
+            buf2.iter())
+            .map(|(a, b)| a ^ b)
+            .map(hamming_weight)
+            .sum::<u32>())
     }
-    zip(buf1.iter(), 
-        buf2.iter())
-        .map(|(a, b)| a ^ b)
-        .map(hamming_weight)
-        .sum::<u32>()
 }
 
 pub fn hextobase64(hex: &String) -> String {
@@ -422,17 +429,21 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
                           edit_distance_2(&slices[2], &slices[3]),
                           edit_distance_2(&slices[0], &slices[2]),
                           edit_distance_2(&slices[1], &slices[3]),
-                          edit_distance_2(&slices[0], &slices[3])];
+                          edit_distance_2(&slices[0], &slices[3])]
+                              .iter()
+                              .filter(|a| a.as_ref().is_ok())
+                              .map(|a| *a.as_ref().unwrap())
+                              .collect();
             normalized = distances.iter().sum::<u32>() as f32 / distances.len() as f32;
             normalized /= keysize as f32;
         } else {
-            normalized = edit_distance_2(&slices[0], &slices[1]) 
-                                as f32 / keysize as f32;
+            if let Ok(sth) = edit_distance_2(&slices[0], &slices[1]) { 
+               normalized = sth as f32 / keysize as f32;
+            } else { continue; }
         }
         normalized_dist.push((keysize, normalized));
     }
     normalized_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    // println!("Normalized distances = {:?}", &normalized_dist);
 
     // Take keysizes with lowest five edit distances
     let mut result = Vec::<(String, f32)>::new();
@@ -441,8 +452,6 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
         // in intervals of the key size. Then decrypt the gathered
         // strings as if they are single byte XOR encrypted.
         let mut to_decrypt = Vec::<String>::new();
-        // println!("Keysize = {}, Ciphertext = {:?}",
-        //     &normalized_dist[count].0, &ciphertext);
         for idx in 1..=normalized_dist[count].0 {
             let collected: Vec<u8> = ciphertext
                         .iter()
@@ -450,7 +459,6 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
                         .step_by(normalized_dist[count].0)
                         .copied()
                         .collect();
-            // println!("Collected = {:?}",&collected);
             to_decrypt.push(bytearraytohex(&collected));
         }
         let decrypted_keys: Vec<(u8, f32)> = to_decrypt
@@ -458,7 +466,6 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
                             .map(|a| decrypt_singlebyte_xor_faster(&a))
                             .map(|b| (b[0].key, b[0].score))
                             .collect();
-        // println!("Count = {}, Decrypted keys = {:?}", count, &decrypted_keys);
         result.push((
             String::from_utf8(
                 decrypted_keys.iter().map(|(a, _)| *a).collect::<Vec<u8>>()
@@ -467,7 +474,7 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
         ));
     }
     result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    // println!("{:?}", &result);
+    println!("{:?}", &result);
     result[0..5].to_vec()
 }
 
@@ -544,6 +551,8 @@ mod tests {
         let hex2 = String::from("686974207468652062756c6c277320657965");
         assert_eq!(hex_xor(&hex1, &hex2), 
             String::from("746865206b696420646f6e277420706c6179"));
+        assert_eq!(hex_xor(&hex2, &hex1), 
+            String::from("746865206b696420646f6e277420706c6179"));
     }
 
     #[test]
@@ -563,8 +572,8 @@ mod tests {
     fn test_edit_distance() {
         let str1 = String::from("this is a test");
         let str2 = String::from("wokka wokka!!!");
-        assert_eq!(edit_distance(&str1, &str2), 37u32);
-        assert_eq!(edit_distance(&str2, &str1), 37u32);
+        assert_eq!(edit_distance(&str1, &str2).ok().unwrap(), 37u32);
+        assert_eq!(edit_distance(&str2, &str1).ok().unwrap(), 37u32);
     }
 
     #[test]
@@ -573,8 +582,8 @@ mod tests {
                                 .as_bytes().to_vec();
         let buf2: Vec<u8> = String::from("wokka wokka!!!")
                                 .as_bytes().to_vec();
-        assert_eq!(edit_distance_2(&buf1, &buf2), 37u32);
-        assert_eq!(edit_distance_2(&buf2, &buf1), 37u32);
+        assert_eq!(edit_distance_2(&buf1, &buf2).ok().unwrap(), 37u32);
+        assert_eq!(edit_distance_2(&buf2, &buf1).ok().unwrap(), 37u32);
     }
 
     #[test]

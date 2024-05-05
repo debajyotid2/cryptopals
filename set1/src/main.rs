@@ -39,7 +39,9 @@ fn test_challenge_4_text_decryption() {
 // Test repeating key XOR decryption
 #[allow(dead_code)]
 fn test_repeating_key_xor_decryption() {
-    let hex_ciphertext = String::from("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f");
+    let plaintext = String::from("Now that the party is jumping\nWith the bass kicked in, the Vegas are pumpin'\nQuick to the point, to the point, no faking\nI'm cooking MC's like a pound of bacon\nBurning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal\nAnd a hi-hat with a souped up tempo\nI'm on a roll, it's time to go solo\nRollin' in my 5.0\nWith my ragtop down so my hair can blow\nThe girlies on standby");
+    let actual_key = String::from("ICE ICE BABY");
+    let hex_ciphertext = encrypt_repeatingkey_xor(&plaintext.replace("\n", ""), &actual_key);
     let ascii_ciphertext = String::from_utf8(hextobytearray(&hex_ciphertext)).unwrap_or(String::new()).replace("\n", "");
     let keys_and_scores = decrypt_repeatingkey_xor(&ascii_ciphertext.as_bytes().to_vec());
     let key: &String = &keys_and_scores[0].0;
@@ -69,4 +71,5 @@ fn test_challenge_6_text_decryption() {
 
 fn main() {
     test_repeating_key_xor_decryption();
+    // test_challenge_6_text_decryption();
 }
