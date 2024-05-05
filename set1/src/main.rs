@@ -69,6 +69,20 @@ fn test_challenge_6_text_decryption() {
                 &encrypt_repeatingkey_xor(&ascii_ciphertext, key))).unwrap());
 }
 
+// Decrypt challenge 7 text
+#[allow(dead_code)]
+fn test_challenge_7_text_decryption() {
+    let base64_ciphertext = fs::read_to_string("7.txt")
+                            .unwrap_or(String::new())
+                            .replace("\n", "")
+                            .replace("=", "");
+    let ascii_key = String::from("YELLOW SUBMARINE");
+    let decrypted: Vec<u8> = decrypt_aes(&base64tobytearray(&base64_ciphertext),
+                                &ascii_key.as_bytes().to_vec());
+
+    println!("Decrypted: \n{}", String::from_utf8(decrypted).unwrap());
+}
+
 fn main() {
-    test_challenge_6_text_decryption();
+    test_challenge_7_text_decryption();
 }

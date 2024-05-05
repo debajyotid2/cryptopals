@@ -1,5 +1,10 @@
 use std::collections::HashMap;
 use std::iter::zip;
+use aes::Aes128;
+use aes::cipher::{
+    BlockCipher, BlockEncrypt, BlockDecrypt, KeyInit,
+    generic_array::GenericArray,
+};
 
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -477,6 +482,40 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
     result[0..5].to_vec()
 }
 
+pub fn decrypt_aes(ciphertext: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
+    let key_arr: [u8; 16] = key.clone().try_into().unwrap();
+    let key_val = GenericArray::from(key_arr);
+
+    let cipher = Aes128::new(&key_val);
+
+    let ciphertext_blocks: Vec<[u8; 16]> = ciphertext
+                    .chunks(16)
+                    .map(|chunk| {
+                        let arr: [u8; 16] = chunk
+                                .try_into()
+                                .unwrap_or({
+                            let mut chunk_copy = chunk.to_vec();
+                            chunk_copy    
+                                .extend_from_slice(
+                                    &vec![0u8].repeat(16 - chunk.len()));
+                            let val: [u8; 16] = chunk_copy
+                                            .try_into().unwrap();
+                            val
+                        });
+                        arr
+                    })
+                    .collect();
+    ciphertext_blocks
+            .iter()
+            .map(|block| {
+                let mut decrypted = GenericArray::from(*block);
+                cipher.decrypt_block(&mut decrypted);
+                decrypted.to_vec()
+            })
+            .flatten()
+            .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -617,5 +656,15 @@ mod tests {
         let ciphertext: Vec<u8> = hextobytearray(&String::from("514542204e52465a4820594f4c544b20434c552047524a4d50204c53424f20514542204958575620414c440a"));
         let matches = decrypt_repeatingkey_xor(&ciphertext); 
         assert_eq!(matches.len(), 5);
+    }
+
+    #[test]
+    fn test_decrypt_aes() {
+        let ciphertext: Vec<u8> = vec![9, 18, 48, 170, 222, 62, 179, 48, 219, 170, 67, 88, 248, 141, 42, 108];
+        let key: Vec<u8> = String::from("YELLOW SUBMARINE").as_bytes().to_vec();
+        let plaintext: Vec<u8> = vec![73, 39, 109, 32, 98, 97, 99, 107, 32, 97, 110, 100, 32, 73, 39, 109];
+;
+        
+        assert_eq!(&decrypt_aes(&ciphertext, &key), &plaintext);
     }
 }
