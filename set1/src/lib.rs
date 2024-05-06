@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::iter::zip;
 use aes::Aes128;
 use aes::cipher::{
-    BlockCipher, BlockEncrypt, BlockDecrypt, KeyInit,
+    BlockDecrypt, KeyInit,
     generic_array::GenericArray,
 };
 
@@ -482,7 +482,7 @@ pub fn decrypt_repeatingkey_xor(ciphertext: &Vec<u8>) -> Vec<(String, f32)> {
     result[0..5].to_vec()
 }
 
-pub fn decrypt_aes(ciphertext: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
+pub fn decrypt_aes_ecb(ciphertext: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
     let key_arr: [u8; 16] = key.clone().try_into().unwrap();
     let key_val = GenericArray::from(key_arr);
 
@@ -514,6 +514,32 @@ pub fn decrypt_aes(ciphertext: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
             })
             .flatten()
             .collect()
+}
+
+pub fn detect_aes_ecb_encryption(hex_ciphertext: &String) -> usize {
+    let ciphertext: Vec<Vec<[u8; 16]>> = hex_ciphertext
+                    .lines()
+                    .map(|line| hextobytearray(&line.to_string()))
+                    .map(|vec| {
+                         vec.chunks(16)
+                            .map(|chunk| {
+                                let arr: [u8; 16] = chunk.try_into().unwrap();
+                                arr
+                            })
+                            .collect()
+                        })
+                    .collect();
+    for (lineno, vec) in ciphertext.iter().enumerate() {
+        for arr in vec {
+            let count = vec.iter().filter(|el| **el == *arr).count();
+            if count < 2 {
+                continue;
+            } else {
+                return lineno + 1;
+            }
+        }
+    }
+    0
 }
 
 #[cfg(test)]
@@ -659,10 +685,10 @@ mod tests {
     }
 
     #[test]
-    fn test_decrypt_aes() {
+    fn test_decrypt_aes_ecb() {
         let ciphertext: Vec<u8> = vec![9, 18, 48, 170, 222, 62, 179, 48, 219, 170, 67, 88, 248, 141, 42, 108];
         let key: Vec<u8> = String::from("YELLOW SUBMARINE").as_bytes().to_vec();
         let plaintext: Vec<u8> = vec![73, 39, 109, 32, 98, 97, 99, 107, 32, 97, 110, 100, 32, 73, 39, 109];
-        assert_eq!(&decrypt_aes(&ciphertext, &key), &plaintext);
+        assert_eq!(&decrypt_aes_ecb(&ciphertext, &key), &plaintext);
     }
 }

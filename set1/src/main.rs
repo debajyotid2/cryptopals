@@ -77,12 +77,25 @@ fn test_challenge_7_text_decryption() {
                             .replace("\n", "")
                             .replace("=", "");
     let ascii_key = String::from("YELLOW SUBMARINE");
-    let decrypted: Vec<u8> = decrypt_aes(&base64tobytearray(&base64_ciphertext),
+    let decrypted: Vec<u8> = decrypt_aes_ecb(&base64tobytearray(&base64_ciphertext),
                                 &ascii_key.as_bytes().to_vec());
 
     println!("Decrypted: \n{}", String::from_utf8(decrypted).unwrap());
 }
 
+// Decrypt challenge 8 text
+#[allow(dead_code)]
+fn test_challenge_8_text_decryption() {
+    let hex_ciphertext = fs::read_to_string("8.txt")
+                            .unwrap_or(String::new());
+    let lineno = detect_aes_ecb_encryption(&hex_ciphertext);
+
+    if lineno == 0 {
+        return;
+    }
+    println!("Found! Line number {} is AES ECB encrypted.", lineno);
+}
+
 fn main() {
-    test_challenge_7_text_decryption();
+    test_challenge_8_text_decryption();
 }
