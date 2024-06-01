@@ -15,7 +15,7 @@ pub enum Error {
 }
 
 pub fn format_chunks(vec: &Vec<u8>) {
-    let string: String = bytearraytohex(vec);
+    let string: String = bytearraytohex(&vec.clone());
     for chunk in string.as_bytes().chunks(32) {
         println!("{}", String::from_utf8(chunk.to_vec()).unwrap());
     }
@@ -31,12 +31,12 @@ pub fn generate_random_bytevec(size: usize) -> Vec<u8> {
     nums[0..size].to_vec()
 }
 
-pub fn pad_pkcs7(block: &Vec<u8>, block_length: usize, pad_byte: u8) -> Result<Vec<u8>, Error> {
+pub fn pad_pkcs7(block: &Vec<u8>, block_length: usize) -> Result<Vec<u8>, Error> {
     if block.len() >= block_length {
         return Err(Error::NoPadSpace);
     }
     let mut res = block.clone();
-    res.extend_from_slice(&vec![pad_byte].repeat(block_length - block.len()));
+    res.extend_from_slice(&vec![(block_length - block.len()) as u8].repeat(block_length - block.len()));
     Ok(res)
 }
 
@@ -70,7 +70,7 @@ pub fn aes_ecb_encrypt(plaintext: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
                             Ok(sth) => sth,
                             Err(_) => {
                                 let val: [u8; 16] = pad_pkcs7(
-                                    &chunk.to_vec(), 16, b'\x00')
+                                    &chunk.to_vec(), 16)
                                         .unwrap()
                                         .try_into()
                                         .unwrap();
@@ -108,7 +108,7 @@ pub fn aes_cbc_encrypt(plaintext: &Vec<u8>, iv: &Vec<u8>, key: &Vec<u8>) -> Vec<
     let mut plaintext_padded = plaintext.clone();
     if plaintext.len() % 16usize != 0 {
         let padded_plaintext_size: usize = plaintext.len() + 16usize - plaintext.len() % 16usize;
-        plaintext_padded = (pad_pkcs7(plaintext, padded_plaintext_size, 0xce)).unwrap();
+        plaintext_padded = (pad_pkcs7(plaintext, padded_plaintext_size)).unwrap();
     }
 
     ciphertext.push(iv.clone());
@@ -321,8 +321,8 @@ mod tests {
     #[test]
     fn test_pad_pkcs7() {
         let block: Vec<u8> = b"Pigs are fly".to_vec();
-        assert_eq!((pad_pkcs7(&block, 16, b'\x04')).unwrap().len(), 16);
-        assert_eq!((pad_pkcs7(&block, 16, b'\x04')).unwrap(), b"Pigs are fly\x04\x04\x04\x04");
+        assert_eq!((pad_pkcs7(&block, 16)).unwrap().len(), 16);
+        assert_eq!((pad_pkcs7(&block, 16)).unwrap(), b"Pigs are fly\x04\x04\x04\x04");
     }
 
     #[test]
