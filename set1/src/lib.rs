@@ -9,32 +9,10 @@ use aes::cipher::{
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const ALPHABET_RANKS: [(char, f32); 26] = [
-    ('z', 0.074),
-    ('q', 0.095),
-    ('x', 0.15),
-    ('j', 0.15),
-    ('k', 0.77),
-    ('v', 0.98),
-    ('b', 1.5),
-    ('p', 1.9),
-    ('y', 2.0),
-    ('g', 2.0),
-    ('f', 2.2),
-    ('w', 2.4),
-    ('m', 2.4),
-    ('c', 2.8),
-    ('u', 2.8),
-    ('l', 4.0),
-    ('d', 4.3),
-    ('r', 6.0),
-    ('h', 6.1),
-    ('s', 6.3),
-    ('n', 6.7),
-    ('i', 7.0),
-    ('o', 7.5),
-    ('a', 8.2),
-    ('t', 9.1),
-    ('e', 12.7)
+    ('z', 0.074), ('q', 0.095), ('x', 0.15), ('j', 0.15), ('k', 0.77), ('v', 0.98), ('b', 1.5),
+    ('p', 1.9), ('y', 2.0), ('g', 2.0), ('f', 2.2), ('w', 2.4), ('m', 2.4), ('c', 2.8), ('u', 2.8),
+    ('l', 4.0), ('d', 4.3), ('r', 6.0), ('h', 6.1), ('s', 6.3), ('n', 6.7), ('i', 7.0), ('o', 7.5),
+    ('a', 8.2), ('t', 9.1), ('e', 12.7)
 ];
 
 #[derive(Clone)]
@@ -60,21 +38,21 @@ pub enum Err {
     BufferLengthError(usize, usize),
 }
 
-fn hexsym2digit(letter: &char) -> u8 {
+pub fn hexsym2digit(letter: &char) -> u8 {
     if let Some(index) = HEXTABLE.find(*letter) {
         return index.try_into().unwrap();
     }
     panic!("Invalid hex symbol.");
 }
 
-fn base64sym2digit(letter: &char) -> u8 {
+pub fn base64sym2digit(letter: &char) -> u8 {
     if let Some(index) = BASE64TABLE.find(*letter) {
         return index.try_into().unwrap();
     }
     panic!("Invalid base64 character {}.", *letter);
 }
 
-fn digit2base64sym(digit: &u8) -> String {
+pub fn digit2base64sym(digit: &u8) -> String {
     if *digit > 63 {
         panic!("Invalid base64 character.");
     }
@@ -84,7 +62,7 @@ fn digit2base64sym(digit: &u8) -> String {
                             .unwrap());
 }
 
-fn digit2hexsym(digit: &u8) -> String {
+pub fn digit2hexsym(digit: &u8) -> String {
     if *digit > 15 {
         panic!("Invalid hex character.");
     }
