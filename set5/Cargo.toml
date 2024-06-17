@@ -1,0 +1,16 @@
+[package]
+name = "set5"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8.5"
+num = "0.4.3"
+sha256 = "1.5.0"
+primes = "0.4.0"
+set1 = { path = "../set1" } 
+set2 = { path = "../set2" } 
+set3 = { path = "../set3" } 
+set4 = { path = "../set4" } 
