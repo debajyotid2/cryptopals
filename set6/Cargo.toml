@@ -1,0 +1,16 @@
+[package]
+name = "set6"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rand = "0.8.5"
+num = "0.4.3"
+md-5 = "0.10.6"
+itertools = "0.13.0"
+primes = "0.4.0"
+set1 = { path = "../set1" }
+set2 = { path = "../set2" }
+set3 = { path = "../set3" }
+set4 = { path = "../set4" }
+set5 = { path = "../set5" }
