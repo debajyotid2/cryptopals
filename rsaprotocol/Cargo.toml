@@ -1,0 +1,9 @@
+[package]
+name = "rsaprotocol"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+num = "0.4.3"
+primegen = { path = "../primegen" }
+bigintops = { path  = "../bigintops" }

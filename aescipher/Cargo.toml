@@ -1,0 +1,11 @@
+[package]
+name = "aescipher"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+itertools = "0.12.1"
+rand = "0.8.5"
+aes = "0.8.4"
+bytearrayconversion = { path = "../bytearrayconversion" }
+xorcipher = { path = "../xorcipher" }

@@ -1,0 +1,20 @@
+[package]
+name = "set6"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rand = "0.8.5"
+num = "0.4.3"
+md-5 = "0.10.6"
+itertools = "0.13.0"
+primes = "0.4.0"
+bytearrayconversion = { path = "../../bytearrayconversion" }
+aescipher = { path = "../../aescipher" }
+vecofbits = { path = "../../vecofbits" }
+sha1hash = { path = "../../sha1hash" }
+rsaprotocol = { path = "../../rsaprotocol" }
+dsaprotocol = { path = "../../dsaprotocol" }
+bigintops = { path = "../../bigintops" }
+primegen = { path = "../../primegen" }
+set5 = { path = "../set5" }

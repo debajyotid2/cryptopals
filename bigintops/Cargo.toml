@@ -1,0 +1,9 @@
+[package]
+name = "bigintops"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+num = "0.4.3"
+vecofbits = { path = "../vecofbits" }
+bytearrayconversion = { path = "../bytearrayconversion" }

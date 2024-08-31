@@ -1,0 +1,8 @@
+[package]
+name = "md4hash"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+vecofbits = { path = "../vecofbits" }
+bytearrayconversion = { path  = "../bytearrayconversion" }

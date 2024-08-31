@@ -1,0 +1,21 @@
+[workspace]
+
+members = [
+    "aescipher",
+    "bigintops",
+    "bytearrayconversion",
+    "dsaprotocol",
+    "md4hash",
+    "mersennetwister",
+    "primegen",
+    "rsaprotocol",
+    "sets/set1",
+    "sets/set2",
+    "sets/set3",
+    "sets/set4",
+    "sets/set5",
+    "sets/set6",
+    "sha1hash",
+    "vecofbits",
+    "xorcipher"
+]

@@ -1,0 +1,20 @@
+[package]
+name = "set5"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8.5"
+num = "0.4.3"
+sha256 = "1.5.0"
+primes = "0.4.0"
+bytearrayconversion = { path = "../../bytearrayconversion" }
+aescipher = { path = "../../aescipher" }
+xorcipher = { path = "../../xorcipher" }
+vecofbits = { path = "../../vecofbits" }
+sha1hash = { path = "../../sha1hash" }
+bigintops = { path = "../../bigintops" }
+rsaprotocol = { path = "../../rsaprotocol" }
+set4 = { path = "../set4" } 

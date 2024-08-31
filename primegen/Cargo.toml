@@ -1,0 +1,10 @@
+[package]
+name = "primegen"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+num = "0.4.3"
+primes = "0.4.0"
+aescipher = { path  = "../aescipher" }
+bigintops = { path = "../bigintops" }

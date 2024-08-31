@@ -1,0 +1,12 @@
+[package]
+name = "dsaprotocol"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+num = "0.4.3"
+bytearrayconversion = { path = "../bytearrayconversion" }
+aescipher = { path = "../aescipher" }
+bigintops = { path = "../bigintops" }
+vecofbits = { path = "../vecofbits" }
+sha1hash = { path = "../sha1hash" }
