@@ -1,8 +1,7 @@
 /// bytearrayconversion library
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,7 +17,7 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 
 const HEXTABLE: &str = "0123456789abcdef";
 const BASE64TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -41,20 +40,14 @@ pub fn digit2base64sym(digit: &u8) -> String {
     if *digit > 63 {
         panic!("Invalid base64 character.");
     }
-    return String::from(BASE64TABLE
-                            .chars()
-                            .nth(*digit as usize)
-                            .unwrap());
+    return String::from(BASE64TABLE.chars().nth(*digit as usize).unwrap());
 }
 
 pub fn digit2hexsym(digit: &u8) -> String {
     if *digit > 15 {
         panic!("Invalid hex character.");
     }
-    return String::from(HEXTABLE
-                            .chars()
-                            .nth(*digit as usize)
-                            .unwrap());
+    return String::from(HEXTABLE.chars().nth(*digit as usize).unwrap());
 }
 
 pub fn hextobin(num_str: &String) -> String {
@@ -72,24 +65,27 @@ pub fn hextobytearray(num_str: &String) -> Vec<u8> {
     let mut res = Vec::<String>::new();
     let mut num_str_iter = num_str.chars();
     for _ in (0..num_str.len()).step_by(2) {
-        res.push(format!("{}{}", 
-                num_str_iter.next().unwrap_or('\0'), 
-                num_str_iter.next().unwrap_or('\0')));
+        res.push(format!(
+            "{}{}",
+            num_str_iter.next().unwrap_or('\0'),
+            num_str_iter.next().unwrap_or('\0')
+        ));
     }
-    res
-        .iter()
-        .map(|el| hexsym2digit(&el.chars().nth(0).unwrap()) * 16 +
-                  hexsym2digit(&el.chars().nth(1).unwrap()))
+    res.iter()
+        .map(|el| {
+            hexsym2digit(&el.chars().nth(0).unwrap()) * 16
+                + hexsym2digit(&el.chars().nth(1).unwrap())
+        })
         .map(|el| el.try_into().unwrap())
         .collect::<Vec<u8>>()
 }
 
 pub fn base64tobin(num_str: &String) -> String {
     let bin_uncut = num_str
-                        .chars()
-                        .map(|el| format!("{:06b}", base64sym2digit(&el)))
-                        .collect::<Vec<String>>()
-                        .join("");
+        .chars()
+        .map(|el| format!("{:06b}", base64sym2digit(&el)))
+        .collect::<Vec<String>>()
+        .join("");
     bin_uncut
         .split_at(bin_uncut.len() - bin_uncut.len() % 8)
         .0
@@ -100,16 +96,15 @@ pub fn base64tobytearray(num_str: &String) -> Vec<u8> {
     let mut res = Vec::<u8>::new();
     for chunk in num_str.as_bytes().chunks(4) {
         let block_value: u32 = chunk
-                            .iter()
-                            .enumerate()
-                            .map(|(i, a)| (
-                                base64sym2digit(&(*a as char)) as u32) *
-                                2_u32.pow((6 * (3 - i)) as u32))
-                            .sum();
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (base64sym2digit(&(*a as char)) as u32) * 2_u32.pow((6 * (3 - i)) as u32))
+            .sum();
 
         for count in 0..(chunk.len() - 1) {
-            let byte: u8 = (((block_value >> (2 - count) * 8)) & 0xFF)
-                                .try_into().unwrap();
+            let byte: u8 = ((block_value >> (2 - count) * 8) & 0xFF)
+                .try_into()
+                .unwrap();
             res.push(byte);
         }
     }
@@ -120,11 +115,9 @@ pub fn bintobase64(num_str: &String) -> String {
     num_str
         .as_bytes()
         .chunks(6)
-        .map(|el| digit2base64sym(
-                        &u8::from_str_radix(
-                            std::str::from_utf8(el)
-                            .unwrap(), 2)
-                        .unwrap()))
+        .map(|el| {
+            digit2base64sym(&u8::from_str_radix(std::str::from_utf8(el).unwrap(), 2).unwrap())
+        })
         .collect::<Vec<String>>()
         .join("")
 }
@@ -133,17 +126,15 @@ pub fn bytearraytobase64(bytearray: &Vec<u8>) -> String {
     let mut res = String::new();
     for chunk in bytearray.chunks(3) {
         let block_value: u32 = chunk
-                            .iter()
-                            .enumerate()
-                            .map(|(i, a)| 
-                                (*a as u32) * 2_u32.pow((8 * (2 - i)) as u32)
-                             )
-                            .sum();
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (*a as u32) * 2_u32.pow((8 * (2 - i)) as u32))
+            .sum();
 
         for count in 0..(chunk.len() + 1) {
             let index: u8 = (block_value >> ((3 - count) * 6) & 0x3F)
-                                .try_into()
-                                .unwrap();
+                .try_into()
+                .unwrap();
             res.push_str(digit2base64sym(&index).as_str());
         }
     }
@@ -154,11 +145,7 @@ pub fn bintohex(num_str: &String) -> String {
     num_str
         .as_bytes()
         .chunks(4)
-        .map(|el| digit2hexsym(
-                        &u8::from_str_radix(
-                            std::str::from_utf8(el)
-                            .unwrap(), 2)
-                        .unwrap()))
+        .map(|el| digit2hexsym(&u8::from_str_radix(std::str::from_utf8(el).unwrap(), 2).unwrap()))
         .collect::<Vec<String>>()
         .join("")
 }
@@ -200,8 +187,6 @@ pub fn base64tohex(base64: &String) -> String {
     bytearraytohex(&base64tobytearray(base64))
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,8 +212,7 @@ mod tests {
     #[test]
     fn test_base64tobytearray() {
         let base64 = String::from("hdjea2");
-        assert_eq!(base64tobytearray(&base64), 
-                   vec![133u8, 216u8, 222u8, 107u8]);
+        assert_eq!(base64tobytearray(&base64), vec![133u8, 216u8, 222u8, 107u8]);
     }
 
     #[test]
@@ -258,14 +242,16 @@ mod tests {
     #[test]
     fn test_hextobase64() {
         let hex = String::from("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d");
-        let base64 = String::from("SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
+        let base64 =
+            String::from("SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
         assert_eq!(hextobase64(&hex), base64);
     }
 
     #[test]
     fn test_base64tohex() {
         let hex = String::from("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d");
-        let base64 = String::from("SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
+        let base64 =
+            String::from("SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
         assert_eq!(base64tohex(&base64), hex);
     }
 
@@ -278,11 +264,7 @@ mod tests {
     #[test]
     fn test_asciitobin() {
         let ascii_str = String::from("I eat mouse");
-        assert_eq!(asciitobin(&ascii_str), 
+        assert_eq!(asciitobin(&ascii_str),
             String::from("0100100100100000011001010110000101110100001000000110110101101111011101010111001101100101"));
     }
-
-
-
-
 }

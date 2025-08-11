@@ -1,8 +1,7 @@
 /// bigintops library
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,13 +17,12 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
+//
 use num::{bigint::Sign, BigInt, FromPrimitive};
 
 #[derive(Debug)]
 pub enum Error {
-    ModInvNotFound
+    ModInvNotFound,
 }
 
 pub fn bigint(arr: &[u8]) -> BigInt {
@@ -39,17 +37,17 @@ pub fn modinv_bytes(a_bytes_be: &[u8], n_bytes_be: &[u8]) -> Result<BigInt, Erro
     let a = bigint(a_bytes_be);
     let n = bigint(n_bytes_be);
     let one = BigInt::from_i32(1).unwrap();
-    
+
     let mut t = BigInt::ZERO;
     let mut r = n.clone();
     let mut new_t = one.clone();
     let mut new_r = a.clone();
     let mut quotient: BigInt;
     let mut temp: BigInt;
-    
+
     while new_r != BigInt::ZERO {
         quotient = r.clone() / new_r.clone();
-        
+
         temp = new_t;
         new_t = t.clone() - quotient.clone() * temp.clone();
         t = temp;
@@ -68,7 +66,11 @@ pub fn modinv_bytes(a_bytes_be: &[u8], n_bytes_be: &[u8]) -> Result<BigInt, Erro
     Ok(t)
 }
 
-pub fn modpow_bytes(base_be_bytes: &[u8], exponent_be_bytes: &[u8], modulus_be_bytes: &[u8]) -> Vec<u8> {
+pub fn modpow_bytes(
+    base_be_bytes: &[u8],
+    exponent_be_bytes: &[u8],
+    modulus_be_bytes: &[u8],
+) -> Vec<u8> {
     let base_bigint = BigInt::from_bytes_be(Sign::Plus, base_be_bytes);
     let exponent_bigint = BigInt::from_bytes_be(Sign::Plus, exponent_be_bytes);
     let modulus_bigint = BigInt::from_bytes_be(Sign::Plus, modulus_be_bytes);
@@ -81,7 +83,7 @@ pub fn modpow_bytes(base_be_bytes: &[u8], exponent_be_bytes: &[u8], modulus_be_b
 pub fn egcd(a_bytes_be: &[u8], b_bytes_be: &[u8]) -> (BigInt, BigInt, BigInt) {
     let a = bigint(a_bytes_be);
     let b = bigint(b_bytes_be);
-    
+
     let mut old_r = a.clone();
     let mut r = b.clone();
     let mut old_s = BigInt::from_i32(1i32).unwrap();
@@ -126,17 +128,20 @@ pub fn cube_root(number_bytes_be: &[u8]) -> Vec<u8> {
         }
 
         prev_diff = diff.clone();
-        
+
         if diff < BigInt::ZERO {
             end = mid.clone();
         } else {
             start = mid.clone();
         }
         if ctr == n_iter - 1 {
-            println!("Warning: cube root did not converge in {} iterations.", &n_iter);
+            println!(
+                "Warning: cube root did not converge in {} iterations.",
+                &n_iter
+            );
         }
     }
-    bytearray(&(mid+1))
+    bytearray(&(mid + 1))
 }
 
 pub fn bigint_div_ceil(numerator: &BigInt, denominator: &BigInt) -> BigInt {
@@ -153,8 +158,8 @@ pub fn bigint_div_floor(numerator: &BigInt, denominator: &BigInt) -> BigInt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vecofbits::BitVec;
     use bytearrayconversion::hextobytearray;
+    use vecofbits::BitVec;
 
     #[test]
     fn test_modpow_bytes() {
@@ -162,7 +167,10 @@ mod tests {
         let exponent = BitVec::new_from_num(32, &0x123456).to_bytearray();
         let modulus = BitVec::new_from_num(32, &0xFEEDBEEF).to_bytearray();
         let expected = hextobytearray(&"81ce3d04".to_string());
-        assert_eq!(modpow_bytes(&base[..], &exponent[..], &modulus[..]), expected)
+        assert_eq!(
+            modpow_bytes(&base[..], &exponent[..], &modulus[..]),
+            expected
+        )
     }
 
     #[test]
@@ -183,7 +191,7 @@ mod tests {
         let a = bytearray(&BigInt::from_i32(87412453).unwrap());
         let b = bytearray(&BigInt::from_i32(85258).unwrap());
         let expected = BigInt::from_i32(35055).unwrap();
-        
+
         assert_eq!(modinv_bytes(&a, &b).unwrap(), expected);
     }
 }

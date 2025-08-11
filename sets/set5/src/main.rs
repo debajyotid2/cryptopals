@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use bigintops::modinv_bytes;
+use bytearrayconversion::{bytearraytohex, hextobytearray};
 /// Set 5
 ///
 ///                    GNU AFFERO GENERAL PUBLIC LICENSE
@@ -20,11 +22,7 @@
 ///    You should have received a copy of the GNU Affero General Public License
 ///    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ///
-
-
 use num::{bigint::Sign, BigInt};
-use bytearrayconversion::{bytearraytohex, hextobytearray};
-use bigintops::modinv_bytes;
 use rsaprotocol::RSA;
 use set5::*;
 
@@ -43,7 +41,7 @@ fn challenge_34() {
     let b = b"Let's play guitar.".to_vec();
     let p: Vec<u8> = hextobytearray(&"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff".to_string());
     let g: u32 = 2;
-    
+
     // Simulate message exchange between two servers
     println!("Normal Diffie-Hellman exchange between two servers:");
 
@@ -88,7 +86,7 @@ fn challenge_35() {
     let b = b"Let's play guitar.".to_vec();
     let p: Vec<u8> = hextobytearray(&"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff".to_string());
     let g: u32 = 2;
-    
+
     // Simulate message exchange between two servers
     println!("Normal Diffie-Hellman exchange between two servers:");
 
@@ -151,7 +149,9 @@ fn challenge_35() {
     println!("{}", bytearraytohex(&b_enc));
 
     // Case 3: MITM sends g = p - 1
-    let p_minus_1_bytes: Vec<u8> = (BigInt::from_bytes_be(Sign::Plus, &p[..]) - 1i32).to_bytes_be().1;
+    let p_minus_1_bytes: Vec<u8> = (BigInt::from_bytes_be(Sign::Plus, &p[..]) - 1i32)
+        .to_bytes_be()
+        .1;
     println!("Case 3: MITM sends g = p - 1");
     // A sends p, g, A to M
     let (p_bytes, _, a_power_bytes) = bot_a.step1();
@@ -179,7 +179,7 @@ fn challenge_36() {
     let password: Vec<u8> = b"myverysecurepassword".to_vec();
     let a = b"You look lovely today.".to_vec();
     let b = b"Let's play guitar.".to_vec();
-    
+
     // Create SRP server and client
     let mut server = SRPServer::new(&b, &n_prime, &g, &k, &email, &password);
     let mut client = SRPClient::new(&a, &n_prime, &g, &k, &email, &password);
@@ -195,7 +195,7 @@ fn challenge_36() {
             server.print();
             println!("Client: ");
             client.print();
-        },
+        }
     };
 }
 
@@ -208,21 +208,22 @@ fn challenge_37() {
     let a = b"You look lovely today.".to_vec();
     let b = b"Let's play guitar.".to_vec();
 
-    let emulate_login = |mut server: SRPServer, mut malclient: MalSRPClient, a_power_bytes: &Vec<u8>| {
-        let (email_data, _) = malclient.step1(&a_power_bytes[..]);
-        let (salt, _) = server.step1(&email_data[..], &a_power_bytes[..]);
-        let hmac = malclient.step2(&salt[..]);
-        match server.step2(hmac) {
-            Ok(_) => println!("HMAC verified successfully."),
-            Err(Error::HMACMismatch(val1, val2)) => {
-                eprintln!("HMAC mismatch. Expected {}, got {}", val1, val2);
-                println!("Server: ");
-                server.print();
-                println!("Client: ");
-                malclient.print();
-            },
+    let emulate_login =
+        |mut server: SRPServer, mut malclient: MalSRPClient, a_power_bytes: &Vec<u8>| {
+            let (email_data, _) = malclient.step1(&a_power_bytes[..]);
+            let (salt, _) = server.step1(&email_data[..], &a_power_bytes[..]);
+            let hmac = malclient.step2(&salt[..]);
+            match server.step2(hmac) {
+                Ok(_) => println!("HMAC verified successfully."),
+                Err(Error::HMACMismatch(val1, val2)) => {
+                    eprintln!("HMAC mismatch. Expected {}, got {}", val1, val2);
+                    println!("Server: ");
+                    server.print();
+                    println!("Client: ");
+                    malclient.print();
+                }
+            };
         };
-    };
 
     // Case 1: Attack with actual client replaced by a fake client
     // sending '0' as a and no password
@@ -242,7 +243,13 @@ fn challenge_37() {
     println!("Case 2b: Attack with client sending k * N (where k is a natural number) as a and no password");
     let server = SRPServer::new(&b, &n_prime, &g, &k, &email, &password);
     let malclient = MalSRPClient::new(&a, &n_prime, &g, &k, &email, &vec![]);
-    emulate_login(server, malclient, &(BigInt::from_bytes_be(Sign::Plus, &n_prime[..]) * 21u32).to_bytes_be().1);
+    emulate_login(
+        server,
+        malclient,
+        &(BigInt::from_bytes_be(Sign::Plus, &n_prime[..]) * 21u32)
+            .to_bytes_be()
+            .1,
+    );
 }
 
 fn challenge_38() {
@@ -265,10 +272,10 @@ fn challenge_38() {
                 server.print();
                 println!("Client: ");
                 client.print();
-            },
+            }
         };
     };
-    
+
     // Normal login validation
     println!("Normal login validation:");
     let server = SimpleSRPServer::new(&b, &n_prime, &g, &email, &password);
@@ -291,11 +298,11 @@ fn challenge_38() {
             Ok(_) => {
                 println!("HMAC verified successfully.");
                 true
-            },
+            }
             Err(Error::HMACMismatch(val1, val2)) => {
                 eprintln!("HMAC mismatch. Expected {}, got {}", val1, val2);
                 false
-            },
+            }
         }
     };
 
@@ -312,7 +319,7 @@ fn challenge_38() {
     // This enables the password to be guessed by something like a dictionary attack
     // where the attacker has a dictionary of passwords and their hashes/ HMACs
     // available. These dictionaries usually become available through password
-    // leaks. 
+    // leaks.
     // See: https://www.alpinesecurity.com/blog/offline-password-cracking-the-attack-and-the-best-defense-against-it/
 }
 
@@ -329,9 +336,7 @@ fn challenge_39() {
 fn challenge_40() {
     let msg = b"The math cares not how stupidly you feed it strings.";
 
-    let bigint = |be_bytes: &[u8]| -> BigInt {
-        BigInt::from_bytes_be(Sign::Plus, be_bytes)
-    };
+    let bigint = |be_bytes: &[u8]| -> BigInt { BigInt::from_bytes_be(Sign::Plus, be_bytes) };
 
     let rsa_encrypt = |message: &[u8]| -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         let rsa = RSA::new(&2048u16);
@@ -348,12 +353,14 @@ fn challenge_40() {
     let m_s_1 = bigint(&n0) * bigint(&n2);
     let m_s_2 = bigint(&n0) * bigint(&n1);
     let n_012 = bigint(&n0) * bigint(&n1) * bigint(&n2);
-    
-    let result: BigInt = (bigint(&c0) * m_s_0.clone() * modinv_bytes(&m_s_0.to_bytes_be().1, &n0).unwrap() +
-            bigint(&c1) * m_s_1.clone() * modinv_bytes(&m_s_1.to_bytes_be().1, &n1).unwrap() +
-            bigint(&c2) * m_s_2.clone() * modinv_bytes(&m_s_2.to_bytes_be().1, &n2).unwrap()) % n_012;
+
+    let result: BigInt =
+        (bigint(&c0) * m_s_0.clone() * modinv_bytes(&m_s_0.to_bytes_be().1, &n0).unwrap()
+            + bigint(&c1) * m_s_1.clone() * modinv_bytes(&m_s_1.to_bytes_be().1, &n1).unwrap()
+            + bigint(&c2) * m_s_2.clone() * modinv_bytes(&m_s_2.to_bytes_be().1, &n2).unwrap())
+            % n_012;
     let retrieved_message: Vec<u8> = result.cbrt().to_bytes_be().1;
-    
+
     assert_eq!(&retrieved_message, &msg);
 
     println!("Original: {}", bytearraytohex(&msg.to_vec()));
@@ -400,4 +407,4 @@ fn main() {
     println!("Running challenge 40 ...");
     println!();
     challenge_40();
- }
+}

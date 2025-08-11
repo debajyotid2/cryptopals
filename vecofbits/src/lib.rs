@@ -1,8 +1,7 @@
 /// vecofbits library
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,12 +17,11 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-use itertools::{Itertools, EitherOrBoth::*};
+use itertools::{EitherOrBoth::*, Itertools};
 
 #[derive(Debug, PartialEq)]
 pub enum BitVecError {
-    Overflow(usize)
+    Overflow(usize),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,25 +31,29 @@ pub struct BitVec {
 
 impl BitVec {
     pub fn new(size_arg: usize) -> BitVec {
-        BitVec{ data: Vec::<u8>::with_capacity(size_arg) }
+        BitVec {
+            data: Vec::<u8>::with_capacity(size_arg),
+        }
     }
 
     pub fn new_from_num(size_arg: usize, num: &u32) -> BitVec {
         if size_arg % 8 > 0 {
             panic!("Bit vector size must be multiple of 8.")
         }
-        let mut res = BitVec{ data: vec![0x00u8; size_arg] };
+        let mut res = BitVec {
+            data: vec![0x00u8; size_arg],
+        };
         res.populate(num);
         res
     }
 
     pub fn new_from_bytearray(bytearr: &Vec<u8>) -> BitVec {
-        let mut vec = BitVec::new(bytearr.len()*8);
+        let mut vec = BitVec::new(bytearr.len() * 8);
         let data: Vec<u8> = bytearr
-                            .iter()
-                            .map(|byte| BitVec::new_from_num(8, &(*byte as u32)).get_data().clone())
-                            .flatten()
-                            .collect();
+            .iter()
+            .map(|byte| BitVec::new_from_num(8, &(*byte as u32)).get_data().clone())
+            .flatten()
+            .collect();
         vec.extend(data);
         vec
     }
@@ -92,19 +94,26 @@ impl BitVec {
         if self.data.len() > 32 {
             Err(BitVecError::Overflow(self.data.len()))
         } else {
-            Ok(self.data
+            Ok(self
+                .data
                 .iter()
                 .enumerate()
-                .map(|(ctr, x)| *x as u32 * ((1 << (self.data.len()-ctr-1)) as u32))
+                .map(|(ctr, x)| *x as u32 * ((1 << (self.data.len() - ctr - 1)) as u32))
                 .sum())
         }
     }
 
     pub fn to_bytearray(&self) -> Vec<u8> {
         self.data
-                .chunks(8)
-                .map(|chunk| chunk.iter().enumerate().map(|(ctr, x)| *x as u8 * ((1 << (8-ctr-1)) as u8)).sum())
-                .collect()
+            .chunks(8)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .enumerate()
+                    .map(|(ctr, x)| *x as u8 * ((1 << (8 - ctr - 1)) as u8))
+                    .sum()
+            })
+            .collect()
     }
 
     pub fn left_shift(&mut self, places: usize) {
@@ -112,12 +121,16 @@ impl BitVec {
     }
 
     pub fn bitwise_or(&self, other: &BitVec) -> BitVec {
-        let res: Vec<u8> = self.data.iter().rev().zip_longest(other.get_data().iter().rev())
+        let res: Vec<u8> = self
+            .data
+            .iter()
+            .rev()
+            .zip_longest(other.get_data().iter().rev())
             .map(|pair| match pair {
-                    Both(l, r) => l | r,
-                    Left(l) => *l,
-                    Right(r) => *r
-             })
+                Both(l, r) => l | r,
+                Left(l) => *l,
+                Right(r) => *r,
+            })
             .rev()
             .collect();
         let mut res_bitvec = BitVec::new(std::cmp::max(self.len(), other.len()));
@@ -153,6 +166,9 @@ mod tests {
     fn test_bitvec_bitwise_or() {
         let mut bitvec = BitVec::new_from_num(8, &0x80);
         bitvec.left_shift(8);
-        assert_eq!(bitvec.bitwise_or(&BitVec::new_from_num(8, &0x80)), BitVec::new_from_num(16, &0x8080));
+        assert_eq!(
+            bitvec.bitwise_or(&BitVec::new_from_num(8, &0x80)),
+            BitVec::new_from_num(16, &0x8080)
+        );
     }
 }

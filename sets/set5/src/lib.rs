@@ -1,35 +1,32 @@
+use aescipher::{aes_cbc_decrypt, aes_cbc_encrypt, generate_random_bytevec, strip_pkcs7_padding};
+use bigintops::{bigint, bytearray, modpow_bytes};
+use bytearrayconversion::{bytearraytohex, hextobytearray};
+use num::{bigint::Sign, BigInt};
 /// Set 5 library functions
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                        Version 3, 19 November 2007
-// 
+//
 //     Copyright (C) 2024 Debajyoti Debnath
-// 
+//
 //     This program is free software: you can redistribute it and/or modify
 //     it under the terms of the GNU Affero General Public License as published
 //     by the Free Software Foundation, either version 3 of the License, or
 //     (at your option) any later version.
-// 
+//
 //     This program is distributed in the hope that it will be useful,
 //     but WITHOUT ANY WARRANTY; without even the implied warranty of
 //     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //     GNU Affero General Public License for more details.
-// 
+//
 //     You should have received a copy of the GNU Affero General Public License
 //     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
-
-
+//
 use rand::prelude::*;
-use sha256;
-use num::{bigint::Sign, BigInt};
-use bytearrayconversion::{ hextobytearray, bytearraytohex };
-use aescipher::{ aes_cbc_decrypt, aes_cbc_encrypt, generate_random_bytevec, strip_pkcs7_padding };
-use set4::{ compute_blocksized_key, xor_bytearrays };
-use vecofbits::BitVec;
+use set4::{compute_blocksized_key, xor_bytearrays};
 use sha1hash::sha1;
-use bigintops::{bigint, bytearray, modpow_bytes};
+use sha256;
+use vecofbits::BitVec;
 
 // Error types
 #[derive(Debug)]
@@ -39,9 +36,7 @@ pub enum Error {
 
 pub fn hmac_sha256(message: &Vec<u8>, key: &Vec<u8>) -> String {
     let blocksize: usize = 256;
-    let hashfunc = |arg: &BitVec| -> String {
-        sha256::digest(arg.to_bytearray())
-    };  
+    let hashfunc = |arg: &BitVec| -> String { sha256::digest(arg.to_bytearray()) };
     let blocksized_key = compute_blocksized_key(key, &blocksize, &hashfunc);
     let mut o_key_pad = xor_bytearrays(&blocksized_key, &b"\x5c".repeat(blocksize / 8)).unwrap();
     let mut i_key_pad = xor_bytearrays(&blocksized_key, &b"\x36".repeat(blocksize / 8)).unwrap();
@@ -61,7 +56,7 @@ pub struct EchoBotA {
     b_power: Vec<u8>,
     message: Vec<u8>,
     key: Vec<u8>,
-    iv: Vec<u8>
+    iv: Vec<u8>,
 }
 
 // Echo bot for challenge 34
@@ -73,21 +68,21 @@ pub struct EchoBotB {
     b_power: Vec<u8>,
     message: Vec<u8>,
     key: Vec<u8>,
-    iv: Vec<u8>
+    iv: Vec<u8>,
 }
 
 impl EchoBotA {
     pub fn new(p_be_bytes: &[u8], g: u32, a_be_bytes: &[u8], message: &[u8]) -> EchoBotA {
-        EchoBotA { 
-                 a: a_be_bytes.to_vec(),
-                 g: BitVec::new_from_num(32, &g).to_bytearray(),
-                 p: p_be_bytes.to_vec(),
-                 a_power: Vec::<u8>::new(),
-                 b_power: Vec::<u8>::new(),
-                 message: message.to_vec(),
-                 key: Vec::<u8>::new(),
-                 iv: Vec::<u8>::new()
-            }
+        EchoBotA {
+            a: a_be_bytes.to_vec(),
+            g: BitVec::new_from_num(32, &g).to_bytearray(),
+            p: p_be_bytes.to_vec(),
+            a_power: Vec::<u8>::new(),
+            b_power: Vec::<u8>::new(),
+            message: message.to_vec(),
+            key: Vec::<u8>::new(),
+            iv: Vec::<u8>::new(),
+        }
     }
 
     pub fn step1(&mut self) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
@@ -108,19 +103,24 @@ impl EchoBotA {
 
 impl EchoBotB {
     pub fn new(b_be_bytes: &[u8]) -> EchoBotB {
-        EchoBotB { 
-                 b: b_be_bytes.to_vec(),
-                 g: Vec::<u8>::new(),
-                 p: Vec::<u8>::new(),
-                 a_power: Vec::<u8>::new(),
-                 b_power: Vec::<u8>::new(),
-                 message: Vec::<u8>::new(),
-                 key: Vec::<u8>::new(),
-                 iv: Vec::<u8>::new()
-            }
+        EchoBotB {
+            b: b_be_bytes.to_vec(),
+            g: Vec::<u8>::new(),
+            p: Vec::<u8>::new(),
+            a_power: Vec::<u8>::new(),
+            b_power: Vec::<u8>::new(),
+            message: Vec::<u8>::new(),
+            key: Vec::<u8>::new(),
+            iv: Vec::<u8>::new(),
+        }
     }
 
-    pub fn step1(&mut self, p_be_bytes: &[u8], g_be_bytes: &[u8], a_power_be_bytes: &[u8]) -> Vec<u8> {
+    pub fn step1(
+        &mut self,
+        p_be_bytes: &[u8],
+        g_be_bytes: &[u8],
+        a_power_be_bytes: &[u8],
+    ) -> Vec<u8> {
         self.g = g_be_bytes.to_vec();
         self.p = p_be_bytes.to_vec();
         self.a_power = a_power_be_bytes.to_vec();
@@ -131,8 +131,12 @@ impl EchoBotB {
     pub fn step2(&mut self, a_enc_msg: Vec<u8>) -> Vec<u8> {
         let s = modpow_bytes(&self.a_power[..], &self.b[..], &self.p[..]);
         self.key = hextobytearray(&sha1(&BitVec::new_from_bytearray(&s)))[..16].to_vec();
-        self.iv = a_enc_msg[a_enc_msg.len()-16..a_enc_msg.len()].to_vec();
-        self.message = aes_cbc_decrypt(&a_enc_msg[..a_enc_msg.len()-16].to_vec(), &self.iv, &self.key);
+        self.iv = a_enc_msg[a_enc_msg.len() - 16..a_enc_msg.len()].to_vec();
+        self.message = aes_cbc_decrypt(
+            &a_enc_msg[..a_enc_msg.len() - 16].to_vec(),
+            &self.iv,
+            &self.key,
+        );
         let mut res = aes_cbc_encrypt(&self.message, &self.iv, &self.key);
         res.extend(self.iv.clone());
         res
@@ -142,7 +146,8 @@ impl EchoBotB {
 fn join_bytearrays(arr1: &Vec<u8>, arr2: &Vec<u8>) -> Vec<u8> {
     arr1.clone()
         .into_iter()
-        .chain(arr2.clone().into_iter()).collect()
+        .chain(arr2.clone().into_iter())
+        .collect()
 }
 
 pub struct SRPClient {
@@ -157,7 +162,7 @@ pub struct SRPClient {
     u_h: Vec<u8>,
     salt: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 pub struct SRPServer {
@@ -173,7 +178,7 @@ pub struct SRPServer {
     v: Vec<u8>,
     u_h: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 pub struct MalSRPClient {
@@ -188,12 +193,19 @@ pub struct MalSRPClient {
     u_h: Vec<u8>,
     salt: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 impl SRPClient {
-    pub fn new(a: &[u8], n_prime: &[u8], g: &[u8], k: &[u8], email: &[u8], password: &[u8]) -> SRPClient {
-        SRPClient { 
+    pub fn new(
+        a: &[u8],
+        n_prime: &[u8],
+        g: &[u8],
+        k: &[u8],
+        email: &[u8],
+        password: &[u8],
+    ) -> SRPClient {
+        SRPClient {
             a: a.to_vec(),
             n_prime: n_prime.to_vec(),
             g: g.to_vec(),
@@ -205,10 +217,10 @@ impl SRPClient {
             a_power: Vec::<u8>::new(),
             b_power: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         }
     }
-    
+
     pub fn step1(&mut self) -> (Vec<u8>, Vec<u8>) {
         self.a_power = modpow_bytes(&self.g[..], &self.a[..], &self.n_prime[..]);
         (self.email.clone(), self.a_power.clone())
@@ -219,15 +231,23 @@ impl SRPClient {
         self.salt = salt.to_vec();
         self.compute_u_h();
         let x_h = hextobytearray(&sha256::digest(join_bytearrays(&self.salt, &self.password)));
-        let base: BigInt = bigint(&self.b_power[..]) - bigint(&self.k[..]) * bigint(&modpow_bytes(&self.g[..], &x_h[..], &self.n_prime[..]));
+        let base: BigInt = bigint(&self.b_power[..])
+            - bigint(&self.k[..]) * bigint(&modpow_bytes(&self.g[..], &x_h[..], &self.n_prime[..]));
         let exponent: BigInt = bigint(&self.a[..]) + bigint(&self.u_h) * bigint(&x_h[..]);
-        self.big_s = modpow_bytes(&bytearray(&base)[..], &bytearray(&exponent)[..], &self.n_prime[..]);
+        self.big_s = modpow_bytes(
+            &bytearray(&base)[..],
+            &bytearray(&exponent)[..],
+            &self.n_prime[..],
+        );
         self.big_k = hextobytearray(&sha256::digest(self.big_s.clone()));
         hmac_sha256(&self.big_k, &self.salt)
     }
 
     fn compute_u_h(&mut self) {
-        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(&self.a_power, &self.b_power)));
+        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(
+            &self.a_power,
+            &self.b_power,
+        )));
     }
 
     pub fn print(&self) {
@@ -241,8 +261,15 @@ impl SRPClient {
 }
 
 impl SRPServer {
-    pub fn new(b: &[u8], n_prime: &[u8], g: &[u8], k: &[u8], email: &[u8], password: &[u8]) -> SRPServer {
-        let mut res = SRPServer{ 
+    pub fn new(
+        b: &[u8],
+        n_prime: &[u8],
+        g: &[u8],
+        k: &[u8],
+        email: &[u8],
+        password: &[u8],
+    ) -> SRPServer {
+        let mut res = SRPServer {
             b: b.to_vec(),
             n_prime: n_prime.to_vec(),
             a_power: Vec::<u8>::new(),
@@ -255,12 +282,20 @@ impl SRPServer {
             v: Vec::<u8>::new(),
             u_h: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         };
 
         // Generate salt
         let randint: u64 = res.rng.gen::<u64>();
-        res.salt = bytearray(&(BigInt::new(Sign::Plus, vec![(randint & 0xFFFFFFFF) as u32, ((randint >> 32) & 0xFFFFFFFF) as u32]) % bigint(&res.n_prime)));
+        res.salt = bytearray(
+            &(BigInt::new(
+                Sign::Plus,
+                vec![
+                    (randint & 0xFFFFFFFF) as u32,
+                    ((randint >> 32) & 0xFFFFFFFF) as u32,
+                ],
+            ) % bigint(&res.n_prime)),
+        );
         let x_h = sha256::digest(join_bytearrays(&res.salt, &password.to_vec()));
         res.v = modpow_bytes(&res.g[..], &hextobytearray(&x_h)[..], &res.n_prime[..]);
 
@@ -270,14 +305,17 @@ impl SRPServer {
     pub fn step1(&mut self, email: &[u8], a_power: &[u8]) -> (Vec<u8>, Vec<u8>) {
         self.a_power = a_power.to_vec();
         self.email = email.to_vec();
-        self.b_power = (bigint(&self.k[..]) * bigint(&self.v[..]) + 
-            bigint(&modpow_bytes(&self.g[..], &self.b[..], &self.n_prime[..]))).to_bytes_be().1;
+        self.b_power = (bigint(&self.k[..]) * bigint(&self.v[..])
+            + bigint(&modpow_bytes(&self.g[..], &self.b[..], &self.n_prime[..])))
+        .to_bytes_be()
+        .1;
         (self.salt.clone(), self.b_power.clone())
     }
 
     pub fn step2(&mut self, hmac: String) -> Result<(), Error> {
         self.compute_u_h();
-        let base = bigint(&self.a_power[..]) * bigint(&modpow_bytes(&self.v[..], &self.u_h[..], &self.n_prime[..]));
+        let base = bigint(&self.a_power[..])
+            * bigint(&modpow_bytes(&self.v[..], &self.u_h[..], &self.n_prime[..]));
         self.big_s = modpow_bytes(&bytearray(&base)[..], &self.b[..], &self.n_prime[..]);
         self.big_k = hextobytearray(&sha256::digest(self.big_s.clone()));
         let hmac_generated = hmac_sha256(&self.big_k, &self.salt);
@@ -289,7 +327,10 @@ impl SRPServer {
     }
 
     fn compute_u_h(&mut self) {
-        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(&self.a_power, &self.b_power)));
+        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(
+            &self.a_power,
+            &self.b_power,
+        )));
     }
 
     pub fn print(&self) {
@@ -304,8 +345,15 @@ impl SRPServer {
 }
 
 impl MalSRPClient {
-    pub fn new(a: &[u8], n_prime: &[u8], g: &[u8], k: &[u8], email: &[u8], password: &[u8]) -> MalSRPClient {
-        MalSRPClient { 
+    pub fn new(
+        a: &[u8],
+        n_prime: &[u8],
+        g: &[u8],
+        k: &[u8],
+        email: &[u8],
+        password: &[u8],
+    ) -> MalSRPClient {
+        MalSRPClient {
             _a: a.to_vec(),
             _n_prime: n_prime.to_vec(),
             _g: g.to_vec(),
@@ -317,10 +365,10 @@ impl MalSRPClient {
             a_power: Vec::<u8>::new(),
             b_power: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         }
     }
-    
+
     pub fn step1(&mut self, a_power_be_bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
         self.a_power = a_power_be_bytes.to_vec();
         (self.email.clone(), self.a_power.clone())
@@ -330,13 +378,16 @@ impl MalSRPClient {
         self.b_power = vec![];
         self.salt = salt.to_vec();
         self.compute_u_h();
-        self.big_s = vec![0u8]; 
+        self.big_s = vec![0u8];
         self.big_k = hextobytearray(&sha256::digest(self.big_s.clone()));
         hmac_sha256(&self.big_k, &self.salt)
     }
 
     fn compute_u_h(&mut self) {
-        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(&self.a_power, &self.b_power)));
+        self.u_h = hextobytearray(&sha256::digest(join_bytearrays(
+            &self.a_power,
+            &self.b_power,
+        )));
     }
 
     pub fn print(&self) {
@@ -360,7 +411,7 @@ pub struct SimpleSRPClient {
     u_h: Vec<u8>,
     salt: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 pub struct SimpleSRPServer {
@@ -375,12 +426,18 @@ pub struct SimpleSRPServer {
     v: Vec<u8>,
     u_h: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 impl SimpleSRPServer {
-    pub fn new(b: &[u8], n_prime: &[u8], g: &[u8], email: &[u8], password: &[u8]) -> SimpleSRPServer {
-        let mut res = SimpleSRPServer{ 
+    pub fn new(
+        b: &[u8],
+        n_prime: &[u8],
+        g: &[u8],
+        email: &[u8],
+        password: &[u8],
+    ) -> SimpleSRPServer {
+        let mut res = SimpleSRPServer {
             b: b.to_vec(),
             n_prime: n_prime.to_vec(),
             a_power: Vec::<u8>::new(),
@@ -392,12 +449,20 @@ impl SimpleSRPServer {
             v: Vec::<u8>::new(),
             u_h: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         };
-        
+
         // Generate salt
         let randint: u64 = res.rng.gen::<u64>();
-        res.salt = bytearray(&(BigInt::new(Sign::Plus, vec![(randint & 0xFFFFFFFF) as u32, ((randint >> 32) & 0xFFFFFFFF) as u32]) % bigint(&res.n_prime)));
+        res.salt = bytearray(
+            &(BigInt::new(
+                Sign::Plus,
+                vec![
+                    (randint & 0xFFFFFFFF) as u32,
+                    ((randint >> 32) & 0xFFFFFFFF) as u32,
+                ],
+            ) % bigint(&res.n_prime)),
+        );
         let x_h = sha256::digest(join_bytearrays(&res.salt, &password.to_vec()));
         res.v = modpow_bytes(&res.g[..], &hextobytearray(&x_h)[..], &res.n_prime[..]);
         res
@@ -406,13 +471,16 @@ impl SimpleSRPServer {
     pub fn step1(&mut self, email: &[u8], a_power: &[u8]) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         self.a_power = a_power.to_vec();
         self.email = email.to_vec();
-        self.b_power = (bigint(&modpow_bytes(&self.g[..], &self.b[..], &self.n_prime[..]))).to_bytes_be().1;
+        self.b_power = (bigint(&modpow_bytes(&self.g[..], &self.b[..], &self.n_prime[..])))
+            .to_bytes_be()
+            .1;
         self.compute_u_h();
         (self.salt.clone(), self.b_power.clone(), self.u_h.clone())
     }
 
     pub fn step2(&mut self, hmac: String) -> Result<(), Error> {
-        let base = bigint(&self.a_power[..]) * bigint(&modpow_bytes(&self.v[..], &self.u_h[..], &self.n_prime[..]));
+        let base = bigint(&self.a_power[..])
+            * bigint(&modpow_bytes(&self.v[..], &self.u_h[..], &self.n_prime[..]));
         self.big_s = modpow_bytes(&bytearray(&base)[..], &self.b[..], &self.n_prime[..]);
         self.big_k = hextobytearray(&sha256::digest(self.big_s.clone()));
         let hmac_generated = hmac_sha256(&self.big_k, &self.salt);
@@ -425,8 +493,17 @@ impl SimpleSRPServer {
 
     fn compute_u_h(&mut self) {
         let randint: u128 = self.rng.gen::<u128>();
-        self.u_h = bytearray(&(BigInt::new(Sign::Plus, vec![(randint & 0xFFFFFFFF) as u32, ((randint >> 32) & 0xFFFFFFFF) as u32, 
-                                                ((randint >> 64) & 0xFFFFFFFF) as u32, ((randint >> 96) & 0xFFFFFFFF) as u32]) % bigint(&self.n_prime)));
+        self.u_h = bytearray(
+            &(BigInt::new(
+                Sign::Plus,
+                vec![
+                    (randint & 0xFFFFFFFF) as u32,
+                    ((randint >> 32) & 0xFFFFFFFF) as u32,
+                    ((randint >> 64) & 0xFFFFFFFF) as u32,
+                    ((randint >> 96) & 0xFFFFFFFF) as u32,
+                ],
+            ) % bigint(&self.n_prime)),
+        );
     }
 
     pub fn print(&self) {
@@ -441,8 +518,14 @@ impl SimpleSRPServer {
 }
 
 impl SimpleSRPClient {
-    pub fn new(a: &[u8], n_prime: &[u8], g: &[u8], email: &[u8], password: &[u8]) -> SimpleSRPClient {
-        SimpleSRPClient { 
+    pub fn new(
+        a: &[u8],
+        n_prime: &[u8],
+        g: &[u8],
+        email: &[u8],
+        password: &[u8],
+    ) -> SimpleSRPClient {
+        SimpleSRPClient {
             a: a.to_vec(),
             n_prime: n_prime.to_vec(),
             g: g.to_vec(),
@@ -453,10 +536,10 @@ impl SimpleSRPClient {
             a_power: Vec::<u8>::new(),
             b_power: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         }
     }
-    
+
     pub fn step1(&mut self) -> (Vec<u8>, Vec<u8>) {
         self.a_power = modpow_bytes(&self.g, &self.a, &self.n_prime);
         (self.email.clone(), self.a_power.clone())
@@ -496,12 +579,16 @@ pub struct MITMSimpleSRPServer {
     v: Vec<u8>,
     u_h: Vec<u8>,
     big_s: Vec<u8>,
-    big_k: Vec<u8>
+    big_k: Vec<u8>,
 }
 
 impl MITMSimpleSRPServer {
-    pub fn new(b_be_bytes: &[u8], n_prime_be_bytes: &[u8], g_be_bytes: &[u8]) -> MITMSimpleSRPServer {
-        let mut res = MITMSimpleSRPServer{ 
+    pub fn new(
+        b_be_bytes: &[u8],
+        n_prime_be_bytes: &[u8],
+        g_be_bytes: &[u8],
+    ) -> MITMSimpleSRPServer {
+        let mut res = MITMSimpleSRPServer {
             b: b_be_bytes.to_vec(),
             n_prime: n_prime_be_bytes.to_vec(),
             g: g_be_bytes.to_vec(),
@@ -513,27 +600,47 @@ impl MITMSimpleSRPServer {
             v: Vec::<u8>::new(),
             u_h: Vec::<u8>::new(),
             big_s: Vec::<u8>::new(),
-            big_k: Vec::<u8>::new()
+            big_k: Vec::<u8>::new(),
         };
-        
+
         // Generate salt
         let randint: u64 = res.rng.gen::<u64>();
-        res.salt = bytearray(&(BigInt::new(Sign::Plus, vec![(randint & 0xFFFFFFFF) as u32, ((randint >> 32) & 0xFFFFFFFF) as u32]) % bigint(&res.n_prime)));
+        res.salt = bytearray(
+            &(BigInt::new(
+                Sign::Plus,
+                vec![
+                    (randint & 0xFFFFFFFF) as u32,
+                    ((randint >> 32) & 0xFFFFFFFF) as u32,
+                ],
+            ) % bigint(&res.n_prime)),
+        );
         res
     }
 
     pub fn step1(&mut self, email: &[u8], a_power: &[u8]) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         self.a_power = a_power.to_vec();
         self.email = email.to_vec();
-        self.b_power = (bigint(&modpow_bytes(&self.g, &self.b, &self.n_prime))).to_bytes_be().1;
+        self.b_power = (bigint(&modpow_bytes(&self.g, &self.b, &self.n_prime)))
+            .to_bytes_be()
+            .1;
         self.compute_u_h();
         (self.salt.clone(), self.b_power.clone(), self.u_h.clone())
     }
 
     pub fn step2(&mut self, hmac: String, password_guess: &[u8]) -> Result<(), Error> {
-        let x_h = hextobytearray(&sha256::digest(join_bytearrays(&self.salt, &password_guess.to_vec())));
-        self.big_s = bytearray(&(bigint(&modpow_bytes(&self.a_power, &self.b, &self.n_prime)) * 
-                            bigint(&modpow_bytes(&self.b_power, &bytearray(&(bigint(&self.u_h) * bigint(&x_h))), &self.n_prime)) % bigint(&self.n_prime)));
+        let x_h = hextobytearray(&sha256::digest(join_bytearrays(
+            &self.salt,
+            &password_guess.to_vec(),
+        )));
+        self.big_s = bytearray(
+            &(bigint(&modpow_bytes(&self.a_power, &self.b, &self.n_prime))
+                * bigint(&modpow_bytes(
+                    &self.b_power,
+                    &bytearray(&(bigint(&self.u_h) * bigint(&x_h))),
+                    &self.n_prime,
+                ))
+                % bigint(&self.n_prime)),
+        );
         self.big_k = hextobytearray(&sha256::digest(self.big_s.clone()));
         let hmac_generated = hmac_sha256(&self.big_k, &self.salt);
         if hmac_generated == hmac {
@@ -545,8 +652,17 @@ impl MITMSimpleSRPServer {
 
     fn compute_u_h(&mut self) {
         let randint: u128 = self.rng.gen::<u128>();
-        self.u_h = bytearray(&(BigInt::new(Sign::Plus, vec![(randint & 0xFFFFFFFF) as u32, ((randint >> 32) & 0xFFFFFFFF) as u32, 
-                                                ((randint >> 64) & 0xFFFFFFFF) as u32, ((randint >> 96) & 0xFFFFFFFF) as u32]) % bigint(&self.n_prime)));
+        self.u_h = bytearray(
+            &(BigInt::new(
+                Sign::Plus,
+                vec![
+                    (randint & 0xFFFFFFFF) as u32,
+                    ((randint >> 32) & 0xFFFFFFFF) as u32,
+                    ((randint >> 64) & 0xFFFFFFFF) as u32,
+                    ((randint >> 96) & 0xFFFFFFFF) as u32,
+                ],
+            ) % bigint(&self.n_prime)),
+        );
     }
 
     pub fn print(&self) {
@@ -569,30 +685,35 @@ fn modexp(base: &u32, exponent: &u32, modulus: &u32) -> u32 {
         pow = (pow * base) % modulus;
     }
     return pow;
-} 
+}
 
 pub fn mitm_intercept(a_enc_msg: Vec<u8>, guessed_s: &[u8]) {
     let s: Vec<u8> = guessed_s.to_vec();
     let key = hextobytearray(&sha1(&BitVec::new_from_bytearray(&s)))[..16].to_vec();
-    let iv = a_enc_msg[a_enc_msg.len()-16..a_enc_msg.len()].to_vec();
-    let msg = aes_cbc_decrypt(&a_enc_msg[..a_enc_msg.len()-16].to_vec(), &iv, &key);
+    let iv = a_enc_msg[a_enc_msg.len() - 16..a_enc_msg.len()].to_vec();
+    let msg = aes_cbc_decrypt(&a_enc_msg[..a_enc_msg.len() - 16].to_vec(), &iv, &key);
     let res = match strip_pkcs7_padding(&msg) {
-        Ok(sth) =>  String::from_utf8(sth).unwrap(),
-        Err(_) => String::from_utf8(msg).unwrap()
+        Ok(sth) => String::from_utf8(sth).unwrap(),
+        Err(_) => String::from_utf8(msg).unwrap(),
     };
     println!("MITM intercepted message: {}", res);
 }
 
-pub fn diffie_hellmann(p_be_bytes: &[u8], g: u32, a_be_bytes: &[u8], b_be_bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
+pub fn diffie_hellmann(
+    p_be_bytes: &[u8],
+    g: u32,
+    a_be_bytes: &[u8],
+    b_be_bytes: &[u8],
+) -> (Vec<u8>, Vec<u8>) {
     let g_be_bytes = BitVec::new_from_num(32, &g).to_bytearray();
-    
+
     let a_power_be_bytes = modpow_bytes(&g_be_bytes, a_be_bytes, p_be_bytes);
     let b_power_be_bytes = modpow_bytes(&g_be_bytes, b_be_bytes, p_be_bytes);
-    
+
     let s_be_bytes = modpow_bytes(&b_power_be_bytes, a_be_bytes, p_be_bytes);
     let s2_be_bytes = modpow_bytes(&a_power_be_bytes, b_be_bytes, p_be_bytes);
-    
-    (s_be_bytes, s2_be_bytes) 
+
+    (s_be_bytes, s2_be_bytes)
 }
 
 pub fn diffie_hellmann_small_int(p: u32, g: u32) -> (u32, u32) {
@@ -606,14 +727,14 @@ pub fn diffie_hellmann_small_int(p: u32, g: u32) -> (u32, u32) {
 
     let s: u32 = modexp(&a_pow, &b, &p);
     let s2: u32 = modexp(&b_pow, &a, &p);
-    
+
     (s, s2)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     #[test]
     fn test_diffie_hellmann_small_int() {
         let res = diffie_hellmann_small_int(37, 5);

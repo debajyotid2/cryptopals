@@ -1,47 +1,43 @@
+use axum::http::StatusCode;
+use http_body_util::Empty;
+use hyper::{body::Bytes, Request};
+use hyper_util::rt::TokioIo;
+use serde::Deserialize;
 /// Set 4 library functions
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                        Version 3, 19 November 2007
-// 
+//
 //     Copyright (C) 2024 Debajyoti Debnath
-// 
+//
 //     This program is free software: you can redistribute it and/or modify
 //     it under the terms of the GNU Affero General Public License as published
 //     by the Free Software Foundation, either version 3 of the License, or
 //     (at your option) any later version.
-// 
+//
 //     This program is distributed in the hope that it will be useful,
 //     but WITHOUT ANY WARRANTY; without even the implied warranty of
 //     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //     GNU Affero General Public License for more details.
-// 
+//
 //     You should have received a copy of the GNU Affero General Public License
 //     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
-
-
-
+//
 use std::{thread, time::Duration};
-use serde::Deserialize;
-use axum::http::StatusCode;
-use http_body_util::Empty;
-use hyper::{ Request, body::Bytes };
-use tokio::time::Instant;
-use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
+use tokio::time::Instant;
 
-use std::iter::*;
-use bytearrayconversion::{bytearraytohex, hextobytearray};
 use aescipher::{aes_ecb_encrypt, generate_random_bytevec, u8tohex};
+use bytearrayconversion::{bytearraytohex, hextobytearray};
+use md4hash::{compute_md_padding_md4, md4, md4_hash};
+use sha1hash::{compute_md_padding_sha1, sha1, sha1_hash};
+use std::iter::*;
 use vecofbits::BitVec;
-use sha1hash::{sha1, compute_md_padding_sha1, sha1_hash};
-use md4hash::{md4, compute_md_padding_md4, md4_hash};
 
 #[derive(Deserialize)]
 pub struct FileInfo {
     pub file: String,
-    pub signature: String
+    pub signature: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +64,12 @@ pub fn check_ascii_chars(text: &Vec<u8>) -> Result<Vec<u8>, Error> {
     Ok(text.clone())
 }
 
-pub fn edit_ctr_ciphertext(ciphertext: &Vec<u8>, key: &Vec<u8>, offset: usize, newtext: &Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn edit_ctr_ciphertext(
+    ciphertext: &Vec<u8>,
+    key: &Vec<u8>,
+    offset: usize,
+    newtext: &Vec<u8>,
+) -> Result<Vec<u8>, Error> {
     if offset + newtext.len() > ciphertext.len() {
         return Err(Error::OutOfKeystreamBounds);
     }
@@ -86,11 +87,14 @@ pub fn edit_ctr_ciphertext(ciphertext: &Vec<u8>, key: &Vec<u8>, offset: usize, n
         let enc_ctr: Vec<u8> = aes_ecb_encrypt(&to_encrypt, key);
         keystream.extend(enc_ctr);
     }
-    
+
     let mut spliced_ciphertext = ciphertext.clone();
-    let part: Vec<u8> = zip(newtext.iter(), keystream.iter().skip(offset).take(newtext.len()))
-                            .map(|(a, b)| a ^ b)
-                            .collect();
+    let part: Vec<u8> = zip(
+        newtext.iter(),
+        keystream.iter().skip(offset).take(newtext.len()),
+    )
+    .map(|(a, b)| a ^ b)
+    .collect();
     spliced_ciphertext[offset..(offset + newtext.len())].copy_from_slice(&part[..]);
     Ok(spliced_ciphertext)
 }
@@ -99,29 +103,44 @@ pub fn xor_bytearrays(arr1: &Vec<u8>, arr2: &Vec<u8>) -> Result<Vec<u8>, Error> 
     if arr1.len() != arr2.len() {
         return Err(Error::DifferentArrayLengths(arr1.len(), arr2.len()));
     }
-    Ok(zip(arr1.iter(), arr2.iter()).map(|(a1, a2)| a1 ^ a2).collect())
+    Ok(zip(arr1.iter(), arr2.iter())
+        .map(|(a1, a2)| a1 ^ a2)
+        .collect())
 }
 
+pub fn sha1_length_extension_attack(
+    message: &BitVec,
+    mac: &String,
+    custom_message: &BitVec,
+    key_len: usize,
+) -> String {
+    let mac_bitvec = BitVec::new_from_bytearray(&hextobytearray(&mac));
+    let new_hashes: Vec<u32> = mac_bitvec
+        .get_data()
+        .clone()
+        .chunks(32)
+        .map(|chunk| {
+            let mut res = BitVec::new(0);
+            res.extend(chunk.to_vec());
+            res.to_num().unwrap() as u32
+        })
+        .collect();
+    let padding: BitVec = compute_md_padding_sha1(message.len() + key_len);
+    let second_padding: BitVec =
+        compute_md_padding_sha1(message.len() + key_len + custom_message.len() + padding.len());
 
-pub fn sha1_length_extension_attack(message: &BitVec, mac: &String, custom_message: &BitVec, key_len: usize) -> String {
-        let mac_bitvec = BitVec::new_from_bytearray(&hextobytearray(&mac));
-        let new_hashes: Vec<u32> = mac_bitvec.get_data()
-                            .clone()
-                            .chunks(32)
-                            .map(|chunk| { 
-                                let mut res = BitVec::new(0);
-                                res.extend(chunk.to_vec());
-                                res.to_num().unwrap() as u32
-                            })
-                            .collect();
-        let padding: BitVec = compute_md_padding_sha1(message.len() + key_len);
-        let second_padding: BitVec = compute_md_padding_sha1(message.len() + key_len + custom_message.len() + padding.len());
-        
-        let mut new_message = custom_message.clone();
-        new_message.extend(second_padding.get_data().clone());
-        
-        let new_mac = sha1_hash(&new_message, &new_hashes[0], &new_hashes[1], &new_hashes[2], &new_hashes[3], &new_hashes[4]);
-        bytearraytohex(&new_mac.to_bytearray())
+    let mut new_message = custom_message.clone();
+    new_message.extend(second_padding.get_data().clone());
+
+    let new_mac = sha1_hash(
+        &new_message,
+        &new_hashes[0],
+        &new_hashes[1],
+        &new_hashes[2],
+        &new_hashes[3],
+        &new_hashes[4],
+    );
+    bytearraytohex(&new_mac.to_bytearray())
 }
 
 pub fn get_secret_prefix_sha1_mac_generator() -> impl Fn(&Vec<u8>) -> String {
@@ -134,23 +153,37 @@ pub fn get_secret_prefix_sha1_mac_generator() -> impl Fn(&Vec<u8>) -> String {
     generate_mac
 }
 
-pub fn md4_length_extension_attack(message: &BitVec, mac: &String, custom_message: &BitVec, key_len: usize) -> String {
-        let mac_bytearr: Vec<u8> = hextobytearray(&mac);
-        let new_hashes: Vec<u32> = mac_bytearr
-                            .chunks(4)
-                            .map(|chunk| { 
-                                let res = BitVec::new_from_bytearray(&chunk.into_iter().rev().map(|x| *x).collect::<Vec<u8>>());
-                                res.to_num().unwrap() as u32
-                            })
-                            .collect();
-        let padding: BitVec = compute_md_padding_md4(message.len() + key_len);
-        let second_padding: BitVec = compute_md_padding_md4(message.len() + key_len + custom_message.len() + padding.len());
-        
-        let mut new_message = custom_message.clone();
-        new_message.extend(second_padding.get_data().clone());
-        
-        let new_mac = md4_hash(&new_message, &new_hashes[0], &new_hashes[1], &new_hashes[2], &new_hashes[3]);
-        bytearraytohex(&new_mac.to_bytearray())
+pub fn md4_length_extension_attack(
+    message: &BitVec,
+    mac: &String,
+    custom_message: &BitVec,
+    key_len: usize,
+) -> String {
+    let mac_bytearr: Vec<u8> = hextobytearray(&mac);
+    let new_hashes: Vec<u32> = mac_bytearr
+        .chunks(4)
+        .map(|chunk| {
+            let res = BitVec::new_from_bytearray(
+                &chunk.into_iter().rev().map(|x| *x).collect::<Vec<u8>>(),
+            );
+            res.to_num().unwrap() as u32
+        })
+        .collect();
+    let padding: BitVec = compute_md_padding_md4(message.len() + key_len);
+    let second_padding: BitVec =
+        compute_md_padding_md4(message.len() + key_len + custom_message.len() + padding.len());
+
+    let mut new_message = custom_message.clone();
+    new_message.extend(second_padding.get_data().clone());
+
+    let new_mac = md4_hash(
+        &new_message,
+        &new_hashes[0],
+        &new_hashes[1],
+        &new_hashes[2],
+        &new_hashes[3],
+    );
+    bytearraytohex(&new_mac.to_bytearray())
 }
 
 pub fn get_secret_prefix_md4_mac_generator() -> impl Fn(&Vec<u8>) -> String {
@@ -163,7 +196,11 @@ pub fn get_secret_prefix_md4_mac_generator() -> impl Fn(&Vec<u8>) -> String {
     generate_mac
 }
 
-pub fn compute_blocksized_key(key: &Vec<u8>, blocksize: &usize, hashfunc: &impl Fn(&BitVec) -> String) -> Vec<u8> {
+pub fn compute_blocksized_key(
+    key: &Vec<u8>,
+    blocksize: &usize,
+    hashfunc: &impl Fn(&BitVec) -> String,
+) -> Vec<u8> {
     let mut key_bitvec = BitVec::new_from_bytearray(key);
     if key_bitvec.len() > *blocksize {
         key_bitvec = BitVec::new_from_bytearray(&hextobytearray(&hashfunc(&key_bitvec)));
@@ -186,9 +223,7 @@ pub fn hmac_sha1(message: &Vec<u8>, key: &Vec<u8>) -> String {
 
 pub fn get_secret_key_sha1_hmac_generator() -> impl Fn(&Vec<u8>) -> String {
     let key = generate_random_bytevec(16);
-    let generate_mac = move |message: &Vec<u8>| -> String {
-        hmac_sha1(message, &key)
-    };
+    let generate_mac = move |message: &Vec<u8>| -> String { hmac_sha1(message, &key) };
     generate_mac
 }
 
@@ -202,12 +237,14 @@ pub fn insecure_compare(incoming: &Vec<u8>, actual: &Vec<u8>) -> bool {
     true
 }
 
-async fn send_validation_request(url_string: &String) -> Result<RequestStatus, Box<dyn std::error::Error + Send + Sync>> {
+async fn send_validation_request(
+    url_string: &String,
+) -> Result<RequestStatus, Box<dyn std::error::Error + Send + Sync>> {
     let url = url_string.as_str().parse::<hyper::Uri>()?;
     let host = url.host().expect("URI has no host.");
     let port = url.port_u16().unwrap_or(3000);
     let addr = format!("{}:{}", host, port);
-    
+
     // Open a TCP connection to the remote
     let stream = TcpStream::connect(addr).await?;
     let io = TokioIo::new(stream);
@@ -222,16 +259,19 @@ async fn send_validation_request(url_string: &String) -> Result<RequestStatus, B
     // Send GET request
     let authority = url.authority().unwrap().clone();
     let req = Request::builder()
-                .uri(url)
-                .header(hyper::header::HOST, authority.as_str())
-                .body(Empty::<Bytes>::new())?;
+        .uri(url)
+        .header(hyper::header::HOST, authority.as_str())
+        .body(Empty::<Bytes>::new())?;
 
     // Measure time to get response
     let now = Instant::now();
     let res = sender.send_request(req).await?;
     let elapsed = now.elapsed();
-   
-    Ok(RequestStatus{ status: res.status(), time_elapsed: elapsed.as_nanos() })
+
+    Ok(RequestStatus {
+        status: res.status(),
+        time_elapsed: elapsed.as_nanos(),
+    })
 }
 
 pub async fn hmac_sha1_timing_attack(filename: &String, host: &String, port: u16) -> String {
@@ -239,7 +279,9 @@ pub async fn hmac_sha1_timing_attack(filename: &String, host: &String, port: u16
     let mut signature_arr = hextobytearray(&hmac_sha1(&filename.as_bytes().to_vec(), &key));
     let mut found = false;
     for idx in 0..signature_arr.len() {
-        if found { break; };
+        if found {
+            break;
+        };
         let signature_orig = signature_arr.clone();
         let mut guessed_byte: u8 = 0;
         let mut max_time_elapsed_ns: u128 = 0;
@@ -248,10 +290,15 @@ pub async fn hmac_sha1_timing_attack(filename: &String, host: &String, port: u16
                 continue;
             }
             signature_arr[idx] = byteval;
-            
+
             let signature = bytearraytohex(&signature_arr);
-            let status = send_validation_request(&format!("http://{}:{}/test?file={}&signature={}", host, port, filename, signature)).await.unwrap();
-            
+            let status = send_validation_request(&format!(
+                "http://{}:{}/test?file={}&signature={}",
+                host, port, filename, signature
+            ))
+            .await
+            .unwrap();
+
             if status.time_elapsed > max_time_elapsed_ns {
                 guessed_byte = byteval;
                 max_time_elapsed_ns = status.time_elapsed;
@@ -284,13 +331,24 @@ mod tests {
     fn test_xor_bytearrays() {
         let arr1: Vec<u8> = b"How do you do?".to_vec();
         let arr2: Vec<u8> = b"Gibberish stuf".to_vec();
-        assert_eq!(xor_bytearrays(&arr1, &arr2), Ok(zip(arr1.iter(),arr2.iter()).map(|(a, b)| a ^ b).collect::<Vec<u8>>()));
+        assert_eq!(
+            xor_bytearrays(&arr1, &arr2),
+            Ok(zip(arr1.iter(), arr2.iter())
+                .map(|(a, b)| a ^ b)
+                .collect::<Vec<u8>>())
+        );
     }
 
     #[test]
     fn test_bitvec() {
         let vec = BitVec::new_from_num(32, &0xABCDEFu32);
-        assert_eq!(vec.get_data().clone(), vec![0u8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1]);
+        assert_eq!(
+            vec.get_data().clone(),
+            vec![
+                0u8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1,
+                0, 1, 1, 1, 1
+            ]
+        );
         assert_eq!(vec.to_num().unwrap(), 0xABCDEFu32);
     }
 

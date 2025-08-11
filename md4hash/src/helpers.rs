@@ -1,8 +1,7 @@
 /// helper functions for md4hash library
-// 
+//
 //                   GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,10 +17,7 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
-
-
+//
 
 pub fn u32_rotate_left(num: &u32, mut places: usize) -> u32 {
     places &= 32 - 1;

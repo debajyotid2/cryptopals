@@ -1,8 +1,9 @@
+use aescipher::generate_random_bytevec;
+use bigintops::{bigint, bytearray, modpow_bytes};
 /// primegen library
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,12 +19,9 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
+//
 use num::{BigInt, FromPrimitive};
-use primes::{Sieve, PrimeSet};
-use bigintops::{bigint, bytearray, modpow_bytes};
-use aescipher::generate_random_bytevec;
+use primes::{PrimeSet, Sieve};
 
 pub fn is_rabin_miller_prime(num: &BigInt, k: usize) -> bool {
     let mut d: BigInt = num.clone() - 1;
@@ -37,7 +35,11 @@ pub fn is_rabin_miller_prime(num: &BigInt, k: usize) -> bool {
     }
     for _ in 0..k {
         let a = 2 + bigint(&generate_random_bytevec(bytearray(&num).len())) % (num.clone() - 4);
-        let mut x = bigint(&modpow_bytes(&bytearray(&a), &bytearray(&d), &bytearray(&num)));
+        let mut x = bigint(&modpow_bytes(
+            &bytearray(&a),
+            &bytearray(&d),
+            &bytearray(&num),
+        ));
         let mut y = BigInt::ZERO;
 
         for _ in 0..s {
@@ -62,14 +64,20 @@ pub fn generate_large_prime(num_bits: usize, primes: &Vec<u32>) -> BigInt {
 
     loop {
         // Generate large odd random number
-        let mut randnum_bytes =  bytearray(&(low.clone() + bigint(&generate_random_bytevec(num_bits / 8)) % (high.clone() - low.clone())));
+        let mut randnum_bytes = bytearray(
+            &(low.clone()
+                + bigint(&generate_random_bytevec(num_bits / 8)) % (high.clone() - low.clone())),
+        );
         if randnum_bytes.last().unwrap() % 2 == 0 {
             *randnum_bytes.last_mut().unwrap() &= 0xFE;
         }
         let randnum = bigint(&randnum_bytes);
-        
+
         // Ensure number is not divisible by stored primes
-        if primes.iter().any(|prime| randnum.clone() % prime == BigInt::ZERO) {
+        if primes
+            .iter()
+            .any(|prime| randnum.clone() % prime == BigInt::ZERO)
+        {
             continue;
         }
 

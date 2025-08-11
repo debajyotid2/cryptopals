@@ -3,41 +3,34 @@
 /// Set 3
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                        Version 3, 19 November 2007
-// 
+//
 //     Copyright (C) 2024 Debajyoti Debnath
-// 
+//
 //     This program is free software: you can redistribute it and/or modify
 //     it under the terms of the GNU Affero General Public License as published
 //     by the Free Software Foundation, either version 3 of the License, or
 //     (at your option) any later version.
-// 
+//
 //     This program is distributed in the hope that it will be useful,
 //     but WITHOUT ANY WARRANTY; without even the implied warranty of
 //     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //     GNU Affero General Public License for more details.
-// 
+//
 //     You should have received a copy of the GNU Affero General Public License
 //     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
-
-
+//
 use rand::prelude::*;
 use std::iter::*;
 use std::{fs, thread, time::Duration};
 
-use set3::*;
 use aescipher::{
-    aes_cbc_encryptor_decryptor_factory, 
-    aes_ctr_decrypt,
-    decrypt_cbc_block_padding_oracle,
-    format_chunks,
-    generate_random_bytevec,
-    strip_pkcs7_padding
+    aes_cbc_encryptor_decryptor_factory, aes_ctr_decrypt, decrypt_cbc_block_padding_oracle,
+    format_chunks, generate_random_bytevec, strip_pkcs7_padding,
 };
-use xorcipher::{decrypt_singlebyte_xor, decrypt_known_keysize_repeatingkey_xor};
 use bytearrayconversion::{base64tobytearray, bytearraytohex};
-use mersennetwister::{MT19937Gen, mt19937_32_untemper};
+use mersennetwister::{mt19937_32_untemper, MT19937Gen};
+use set3::*;
+use xorcipher::{decrypt_known_keysize_repeatingkey_xor, decrypt_singlebyte_xor};
 
 fn challenge_17() {
     let base64_strings: Vec<String> = vec![
@@ -50,21 +43,21 @@ fn challenge_17() {
         "MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw==".to_string(),
         "MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8=".to_string(),
         "MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=".to_string(),
-        "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93".to_string()
+        "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93".to_string(),
     ];
-    
+
     let (encryptor, decryptor, iv) = aes_cbc_encryptor_decryptor_factory();
 
     let encryptor_2 = || -> (Vec<u8>, Vec<u8>) {
         let mut rng = rand::thread_rng();
-        
+
         // Pick random base64 encoded string
         let idx: usize = rng.gen::<usize>() % base64_strings.len();
         let to_encrypt: Vec<u8> = base64tobytearray(&base64_strings[idx].replace("=", ""));
-        
+
         (encryptor(&to_encrypt), iv.clone())
     };
-    
+
     let padding_oracle = |ciphertext: &Vec<u8>| -> bool {
         let decrypted: Vec<u8> = decryptor(ciphertext);
         check_valid_pkcs7_padding(&decrypted)
@@ -72,7 +65,7 @@ fn challenge_17() {
 
     let mut ciphertexts = Vec::<Vec<u8>>::new();
     let mut iv = Vec::<u8>::new();
-    
+
     loop {
         let (ciphertext, got_iv) = encryptor_2();
         if iv.len() == 0 {
@@ -87,14 +80,19 @@ fn challenge_17() {
         }
     }
     println!();
-    
+
     for ciphertext in ciphertexts.iter() {
-        let mut ciphertext_chunks: Vec<Vec<u8>> = ciphertext.chunks(16).map(|x| x.to_vec()).collect();
+        let mut ciphertext_chunks: Vec<Vec<u8>> =
+            ciphertext.chunks(16).map(|x| x.to_vec()).collect();
         let mut plaintext_chunks = Vec::<Vec<u8>>::new();
         ciphertext_chunks.insert(0, iv.clone());
 
-        for count in 0..ciphertext_chunks.len()-1 {
-            let plaintext_chunk: Vec<u8> = match decrypt_cbc_block_padding_oracle(&ciphertext_chunks[count], &ciphertext_chunks[count+1], &padding_oracle) {
+        for count in 0..ciphertext_chunks.len() - 1 {
+            let plaintext_chunk: Vec<u8> = match decrypt_cbc_block_padding_oracle(
+                &ciphertext_chunks[count],
+                &ciphertext_chunks[count + 1],
+                &padding_oracle,
+            ) {
                 Ok(sth) => sth,
                 Err(_) => {
                     println!("Decryption error.");
@@ -105,7 +103,7 @@ fn challenge_17() {
             if count == ciphertext_chunks.len() - 2 {
                 match strip_pkcs7_padding(&plaintext_chunk) {
                     Ok(sth) => plaintext_chunks.push(sth),
-                    Err(_) => plaintext_chunks.push(plaintext_chunk)
+                    Err(_) => plaintext_chunks.push(plaintext_chunk),
                 };
                 continue;
             }
@@ -121,7 +119,11 @@ fn challenge_17() {
 }
 
 fn challenge_18() {
-    let ciphertext: Vec<u8> = base64tobytearray(&"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==".to_string().replace("=", ""));
+    let ciphertext: Vec<u8> = base64tobytearray(
+        &"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ=="
+            .to_string()
+            .replace("=", ""),
+    );
     let key: Vec<u8> = b"YELLOW SUBMARINE".to_vec();
     let nonce: Vec<u8> = b"\x00".repeat(key.len() / 2);
     let plaintext: Vec<u8> = aes_ctr_decrypt(&ciphertext, &key, &nonce);
@@ -172,9 +174,9 @@ fn challenge_19() {
         "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
     ];
     let plaintexts: Vec<Vec<u8>> = plaintext_strings
-                                                    .iter()
-                                                    .map(|txt_str| base64tobytearray(&txt_str.to_string().replace("=", "")))
-                                                    .collect();
+        .iter()
+        .map(|txt_str| base64tobytearray(&txt_str.to_string().replace("=", "")))
+        .collect();
 
     let max_plaintext_len: usize = plaintexts.iter().map(|x| x.len()).max().unwrap();
 
@@ -183,28 +185,37 @@ fn challenge_19() {
 
     let mut ciphertext_chunk_vec = Vec::<Vec<u8>>::new();
     for count in 0..max_plaintext_len {
-        let nth_bytes: Vec<u8> = ciphertexts.iter().map(|txt| txt.iter().nth(count)).filter(|x| x.is_some()).map(|x| *x.unwrap()).collect();
+        let nth_bytes: Vec<u8> = ciphertexts
+            .iter()
+            .map(|txt| txt.iter().nth(count))
+            .filter(|x| x.is_some())
+            .map(|x| *x.unwrap())
+            .collect();
         ciphertext_chunk_vec.push(nth_bytes);
     }
 
     // Decrypt keystream from ciphertexts
     let keystream: Vec<u8> = ciphertext_chunk_vec
-                                .iter()
-                                .map(|x| {
-                                    let res = decrypt_singlebyte_xor(&bytearraytohex(&x));
-                                    res[0].key
-                                })
-                                .collect();
+        .iter()
+        .map(|x| {
+            let res = decrypt_singlebyte_xor(&bytearraytohex(&x));
+            res[0].key
+        })
+        .collect();
 
     // Decrypt ciphertexts
     for ciphertext in ciphertexts.iter() {
         let decrypted: Vec<u8> = zip(ciphertext.iter(), keystream.iter())
-                                    .map(|(a, b)| a ^ b)
-                                    .collect();
+            .map(|(a, b)| a ^ b)
+            .collect();
         match String::from_utf8(decrypted.clone()) {
             Ok(sth) => println!("{}", sth),
             Err(_) => {
-                println!("{}", String::from_utf8(decrypted.into_iter().filter(|x| *x < 127).collect()).unwrap());
+                println!(
+                    "{}",
+                    String::from_utf8(decrypted.into_iter().filter(|x| *x < 127).collect())
+                        .unwrap()
+                );
             }
         };
     }
@@ -213,32 +224,40 @@ fn challenge_19() {
 fn challenge_20() {
     let plaintext_raw = fs::read_to_string("20.txt").unwrap();
     let plaintexts: Vec<Vec<u8>> = plaintext_raw
-                                        .lines()
-                                        .map(|x| base64tobytearray(&x.to_string().replace("=", "")))
-                                        .collect();
+        .lines()
+        .map(|x| base64tobytearray(&x.to_string().replace("=", "")))
+        .collect();
 
     let mut min_plaintext_len: usize = plaintexts.iter().map(|x| x.len()).min().unwrap();
-    min_plaintext_len -= min_plaintext_len % 16;   // Truncating to the nearest multiple of block
-                                                   // size since encryption is in chunks of
-                                                   // blocksize bytes.
+    min_plaintext_len -= min_plaintext_len % 16; // Truncating to the nearest multiple of block
+                                                 // size since encryption is in chunks of
+                                                 // blocksize bytes.
 
     let dumb_ctr_encryptor = get_ctr_encryptor();
     let ciphertexts: Vec<Vec<u8>> = plaintexts.iter().map(&dumb_ctr_encryptor).collect();
-    
+
     // Decrypt keystream from concatenated ciphertexts
-    let ciphertexts_concat: Vec<u8> = ciphertexts.iter().map(|x| x[..min_plaintext_len].to_vec()).flatten().collect();
-    
+    let ciphertexts_concat: Vec<u8> = ciphertexts
+        .iter()
+        .map(|x| x[..min_plaintext_len].to_vec())
+        .flatten()
+        .collect();
+
     let keystream = decrypt_known_keysize_repeatingkey_xor(&ciphertexts_concat, &min_plaintext_len);
-    
+
     // Decrypt ciphertexts
     for ciphertext in ciphertexts.iter() {
         let decrypted: Vec<u8> = zip(ciphertext.iter(), keystream.iter())
-                                    .map(|(a, b)| a ^ b)
-                                    .collect();
+            .map(|(a, b)| a ^ b)
+            .collect();
         match String::from_utf8(decrypted.clone()) {
             Ok(sth) => println!("{}", sth),
             Err(_) => {
-                println!("{}", String::from_utf8(decrypted.into_iter().filter(|x| *x < 127).collect()).unwrap());
+                println!(
+                    "{}",
+                    String::from_utf8(decrypted.into_iter().filter(|x| *x < 127).collect())
+                        .unwrap()
+                );
             }
         };
     }
@@ -247,21 +266,19 @@ fn challenge_20() {
 fn challenge_22() {
     let get_rng_output = || -> u32 {
         let mut rng = MT19937Gen::new(13);
-        let mut get_random_secs = || -> u64 {
-            40 + (rng.gen() as u64) % (1000 - 40)
-        };
+        let mut get_random_secs = || -> u64 { 40 + (rng.gen() as u64) % (1000 - 40) };
 
         let sleep_secs = get_random_secs();
         thread::sleep(Duration::from_secs(sleep_secs));
 
         let mut rng_2 = MT19937Gen::new(get_unix_timestamp() as u32);
         thread::sleep(Duration::from_secs(get_random_secs()));
-        rng_2.gen()   
+        rng_2.gen()
     };
-    
+
     let randint: u32 = get_rng_output();
     let timestamp: u64 = get_unix_timestamp();
-    
+
     // Crack the seed of the RNG from the time elapsed since generation
     for secs in 40..1000 {
         let mut rng = MT19937Gen::new((timestamp - secs) as u32);
@@ -282,7 +299,10 @@ fn challenge_23() {
         guessed_state.push(mt19937_32_untemper(&randnums[count]));
     }
     let mut newrng = MT19937Gen::new_from(&guessed_state);
-    assert_eq!((0..624).map(|_| newrng.gen()).collect::<Vec<u32>>(), (0..624).map(|_| rng.gen()).collect::<Vec<u32>>());
+    assert_eq!(
+        (0..624).map(|_| newrng.gen()).collect::<Vec<u32>>(),
+        (0..624).map(|_| rng.gen()).collect::<Vec<u32>>()
+    );
 }
 
 fn challenge_24() {
@@ -292,7 +312,7 @@ fn challenge_24() {
         plaintext.extend(b"A".to_vec().repeat(14));
         plaintext
     };
-    
+
     let seed: u16 = 0xABCD;
     let plaintext = generate_plaintext();
     let ciphertext: Vec<u8> = mt19937_keystream_encrypt(&plaintext, &seed);
@@ -308,20 +328,20 @@ fn challenge_24() {
     format_chunks(&decrypted);
 
     let matched_keystream: Vec<u8> = zip(plaintext.iter(), ciphertext.iter())
-                                        .map(|(a, b)| a ^ b)
-                                        .skip(ciphertext.len() - 14)
-                                        .take(14)
-                                        .collect();
+        .map(|(a, b)| a ^ b)
+        .skip(ciphertext.len() - 14)
+        .take(14)
+        .collect();
 
     let break_mt19937_16_bit_keystream = || -> u16 {
         for guess in 0..=0xFFFFu16 {
             let mut rng = MT19937Gen::new(guess as u32);
             let keystream: Vec<u8> = (0..ciphertext.len())
-                                        .map(|_| rng.gen())
-                                        .skip(ciphertext.len() - 14)
-                                        .take(14)
-                                        .map(|x| (x & 0xFF) as u8)
-                                        .collect();
+                .map(|_| rng.gen())
+                .skip(ciphertext.len() - 14)
+                .take(14)
+                .map(|x| (x & 0xFF) as u8)
+                .collect();
             if keystream != matched_keystream {
                 continue;
             }
@@ -345,7 +365,11 @@ fn challenge_24() {
         if guess != token {
             continue;
         }
-        println!("Key: {}, secs: {}", ((timestamp - secs) & 0xFFFF) as u16, secs);
+        println!(
+            "Key: {}, secs: {}",
+            ((timestamp - secs) & 0xFFFF) as u16,
+            secs
+        );
         break;
     }
 }

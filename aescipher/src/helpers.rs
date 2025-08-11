@@ -1,8 +1,8 @@
+use bytearrayconversion::{bytearraytohex, digit2hexsym};
 /// Helper functions for aescipher
 //
 //                    GNU AFFERO GENERAL PUBLIC LICENSE
 //                    Version 3, 19 November 2007
-
 
 // Copyright (C) 2024 Debajyoti Debnath
 
@@ -19,9 +19,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
-
 use rand::prelude::*;
-use bytearrayconversion::{digit2hexsym, bytearraytohex};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -57,7 +55,9 @@ pub fn pad_pkcs7(block: &Vec<u8>, block_length: usize) -> Result<Vec<u8>, Error>
         return Err(Error::NoPadSpace);
     }
     let mut res = block.clone();
-    res.extend_from_slice(&vec![(block_length - block.len()) as u8].repeat(block_length - block.len()));
+    res.extend_from_slice(
+        &vec![(block_length - block.len()) as u8].repeat(block_length - block.len()),
+    );
     Ok(res)
 }
 
@@ -86,7 +86,10 @@ mod tests {
     fn test_pad_pkcs7() {
         let block: Vec<u8> = b"Pigs are fly".to_vec();
         assert_eq!((pad_pkcs7(&block, 16)).unwrap().len(), 16);
-        assert_eq!((pad_pkcs7(&block, 16)).unwrap(), b"Pigs are fly\x04\x04\x04\x04");
+        assert_eq!(
+            (pad_pkcs7(&block, 16)).unwrap(),
+            b"Pigs are fly\x04\x04\x04\x04"
+        );
     }
 
     #[test]
@@ -97,9 +100,15 @@ mod tests {
     #[test]
     fn test_strip_pkcs7_padding() {
         let bytes: Vec<u8> = b"Bytes are fun!\xae\xae\xae\xae\xae".to_vec();
-        assert_eq!(strip_pkcs7_padding(&bytes).unwrap(), b"Bytes are fun!".to_vec());
-        
+        assert_eq!(
+            strip_pkcs7_padding(&bytes).unwrap(),
+            b"Bytes are fun!".to_vec()
+        );
+
         let bytes_no_padding: Vec<u8> = b"ICE ICE BABY\x01\x02\x03\x04".to_vec();
-        assert_eq!(strip_pkcs7_padding(&bytes_no_padding), Err(Error::NoPadBytesFound));
+        assert_eq!(
+            strip_pkcs7_padding(&bytes_no_padding),
+            Err(Error::NoPadBytesFound)
+        );
     }
 }

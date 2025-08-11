@@ -1,8 +1,8 @@
+use bigintops::{bytearray, modinv_bytes, modpow_bytes};
 /// rsaprotocol library
-// 
+//
 //                     GNU AFFERO GENERAL PUBLIC LICENSE
 //                     Version 3, 19 November 2007
-
 
 //  Copyright (C) 2024 Debajyoti Debnath
 
@@ -18,17 +18,15 @@
 
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// 
-
+//
 use num::{BigInt, FromPrimitive};
-use bigintops::{bytearray, modpow_bytes, modinv_bytes};
-use primegen::{get_first_n_primes, generate_large_prime};
+use primegen::{generate_large_prime, get_first_n_primes};
 
 pub struct RSA {
     n: Vec<u8>,
     e: Vec<u8>,
     d: Vec<u8>,
-    keysize: u16
+    keysize: u16,
 }
 
 impl RSA {
@@ -50,10 +48,15 @@ impl RSA {
                 Err(_) => continue,
             }
         };
-        
-        RSA { n: bytearray(&n), e: bytearray(&e), d: bytearray(&d), keysize: *keysize }
+
+        RSA {
+            n: bytearray(&n),
+            e: bytearray(&e),
+            d: bytearray(&d),
+            keysize: *keysize,
+        }
     }
-    
+
     pub fn get_public_key(&self) -> (Vec<u8>, Vec<u8>) {
         (self.e.clone(), self.n.clone())
     }
